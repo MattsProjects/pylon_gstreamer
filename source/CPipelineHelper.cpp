@@ -270,7 +270,7 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 }
 
 // example of how to create a pipeline for encoding images in h264 format and streaming to local video file
-bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRecord)
+bool CPipelineHelper::build_pipeline_h264file(string fileName)
 {
 	try
 	{
@@ -285,7 +285,6 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 		
 		GstElement *convert;
 		GstElement *encoder;
-		GstElement *muxer;
 		GstElement *sink;
 
 		cout << "Creating Pipeline for saving images as h264 video on local host: " << fileName << "..." << endl;
@@ -310,21 +309,14 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 				}
 			}
 		}
-		muxer = gst_element_factory_make("qtmux", "muxer");
 		sink = gst_element_factory_make("filesink", "filesink");
 
 
 		if (!convert){ cout << "Could not make convert" << endl; return false; }
 		if (!encoder){ cout << "Could not make encoder" << endl; return false; }
-		if (!muxer){ cout << "Could not make muxer" << endl; return false; }
 		if (!sink){ cout << "Could not make sink" << endl; return false; }
 
 		// Set up elements
-
-		// instead of capturing indefinitely, we want to send the EOS signal after a specified amount of images.
-		g_object_set(G_OBJECT(m_source),
-			"num-buffers", numFramesToRecord,
-			NULL);
 
 		// Different encoders have different features you can set.
 		if (encoder->object.name == "x264enc")
@@ -335,11 +327,9 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 
 		g_object_set(G_OBJECT(sink), "location", fileName.c_str(), NULL);
 
-		cout << "Source will output " << numFramesToRecord << " frames before sending EOS..." << endl;
-
 		// add and link the pipeline elements
-		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, muxer, sink, NULL);
-		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, muxer, sink, NULL);
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, sink, NULL);
+		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, sink, NULL);
 		
 		cout << "Pipeline Made." << endl;
 		

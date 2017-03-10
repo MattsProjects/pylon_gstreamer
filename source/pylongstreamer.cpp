@@ -419,7 +419,7 @@ gint main(gint argc, gchar *argv[])
 
 		// Initialize the camera and driver
 		cout << "Initializing camera and driver..." << endl;
-		camera.InitCamera(width, height, frameRate, onDemand, useTrigger, scaledWidth, scaledHeight, rotation);		
+		camera.InitCamera(width, height, frameRate, onDemand, useTrigger, scaledWidth, scaledHeight, rotation, numImagesToRecord);		
 
 		cout << "Using Camera             : " << camera.GetDeviceInfo().GetFriendlyName() << endl;
 		cout << "Camera Area Of Interest  : " << camera.GetWidth() << "x" << camera.GetHeight() << endl;
@@ -454,7 +454,7 @@ gint main(gint argc, gchar *argv[])
 		else if (h264stream == true)
 			pipelineBuilt = myPipelineHelper.build_pipeline_h264stream(ipaddress.c_str());
 		else if (h264file == true)
-			pipelineBuilt = myPipelineHelper.build_pipeline_h264file(filename.c_str(), numImagesToRecord);
+			pipelineBuilt = myPipelineHelper.build_pipeline_h264file(filename.c_str());
 		else if (framebuffer == true)
 			pipelineBuilt = myPipelineHelper.build_pipeline_framebuffer(fbdev.c_str());
 
