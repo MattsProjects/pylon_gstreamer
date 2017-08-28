@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pylongstreamer", "pylongstreamer.vcxproj", "{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Pylon4Release|Win32 = Pylon4Release|Win32
+		Pylon4Release|x64 = Pylon4Release|x64
+		Pylon5Release|Win32 = Pylon5Release|Win32
+		Pylon5Release|x64 = Pylon5Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon4Release|Win32.ActiveCfg = Pylon4Release|Win32
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon4Release|Win32.Build.0 = Pylon4Release|Win32
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon4Release|x64.ActiveCfg = Pylon4Release|x64
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon4Release|x64.Build.0 = Pylon4Release|x64
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon5Release|Win32.ActiveCfg = Pylon5Release|Win32
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon5Release|Win32.Build.0 = Pylon5Release|Win32
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon5Release|x64.ActiveCfg = Pylon5Release|x64
+		{9CE2A9A4-2EFB-4EF7-B54D-6B44317D4B59}.Pylon5Release|x64.Build.0 = Pylon5Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
