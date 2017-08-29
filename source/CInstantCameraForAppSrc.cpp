@@ -92,7 +92,10 @@ int64_t CInstantCameraForAppSrc::GetHeight()
 }
 double CInstantCameraForAppSrc::GetFrameRate()
 {
-	return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRateAbs"))->GetValue();
+	if (GenApi::IsAvailable(GetNodeMap().GetNode("ResultingFrameRateAbs")))
+	  return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRateAbs"))->GetValue();
+	else
+	  return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRate"))->GetValue(); // BCON and USB use SFNC3 names	
 }
 
 // Open the camera and adjust some settings
@@ -123,8 +126,10 @@ bool CInstantCameraForAppSrc::InitCamera()
 
 		// First, enable migration mode in usb cameras so that we can solve the 'same feature has different name' topic.
 		// Migration mode lets us access features by their old names too.
-		if (GetDeviceInfo().GetDeviceClass() == "BaslerUsb")
-			GenApi::CBooleanPtr(GetTLNodeMap().GetNode("MigrationModeEnable"))->SetValue(true);
+		// We skip this here because the BCON interface also uses SFNC3 names, but does not support migration mode.
+		// Since we want to support BCON also in this program, we will manage each feature with a different name manually.
+		//if (GetDeviceInfo().GetDeviceClass() == "BaslerUsb")
+		//	GenApi::CBooleanPtr(GetTLNodeMap().GetNode("MigrationModeEnable"))->SetValue(true);
 
 		// setup some settings common to most cameras (it's always best to check if a feature is available before setting it)
 		if (m_isTriggered == false)
@@ -133,6 +138,9 @@ bool CInstantCameraForAppSrc::InitCamera()
 				GenApi::CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
 			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
 				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(m_frameRate); // this is called "AcquisitionFrameRate" (not abs) in usb cameras. Migration mode lets us use the old name though.
+			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(m_frameRate); // BCON and USB use SFNC3 names.
+		  
 		}
 		if (IsAvailable(GetNodeMap().GetNode("Width")))
 			GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->SetValue(m_width);
@@ -151,6 +159,11 @@ bool CInstantCameraForAppSrc::InitCamera()
 				if (IsAvailable(ptrTriggerSelector->GetEntryByName("AcquisitionStart")))
 				{
 					ptrTriggerSelector->FromString("AcquisitionStart");
+					GenApi::CEnumerationPtr(GetNodeMap().GetNode("TriggerMode"))->FromString("Off");
+				}
+				if (IsAvailable(ptrTriggerSelector->GetEntryByName("FrameBurstStart"))) // BCON and USB use SFNC3 names
+				{
+					ptrTriggerSelector->FromString("FrameBurstStart");
 					GenApi::CEnumerationPtr(GetNodeMap().GetNode("TriggerMode"))->FromString("Off");
 				}
 				if (IsAvailable(ptrTriggerSelector->GetEntryByName("FrameStart")))
