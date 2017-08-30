@@ -1,25 +1,34 @@
 /*  CPipelineHelper.cpp: Definition file for CPipelineHeader Class.
     Given a GStreamer pipeline and source, this will finish building a pipeline.
-   
-    Copyright (C) 2017 Matthew Breit <matt.breit@gmail.com>
-	(Special thanks to Florian Echtler <floe@butterbrot.org>. From his work I learned GStreamer :))
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+	Copyright (c) 2017, Matthew Breit <matt.breit@gmail.com>
+	All rights reserved.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	Redistribution and use in source and binary forms, with or without
+	modification, are permitted provided that the following conditions are met:
+	* Redistributions of source code must retain the above copyright
+	notice, this list of conditions and the following disclaimer.
+	* Redistributions in binary form must reproduce the above copyright
+	notice, this list of conditions and the following disclaimer in the
+	documentation and/or other materials provided with the distribution.
+	* Neither the name of the copyright holder nor the
+	names of its contributors may be used to endorse or promote products
+	derived from this software without specific prior written permission.
 
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-	
-	Dependent libraries/API's may be licensed under different terms.
-	Please consult the respective authors/manufacturer for more information.
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	DISCLAIMED. IN NO EVENT SHALL COPYRIGHT HOLDER BE LIABLE FOR ANY
+	DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+	ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	THIS SOFTWARE REQUIRES ADDITIONAL SOFTWARE (IE: LIBRARIES) IN ORDER TO COMPILE
+	INTO BINARY FORM AND TO FUNCTION IN BINARY FORM. ANY SUCH ADDITIONAL SOFTWARE
+	IS OUTSIDE THE SCOPE OF THIS LICENSE.
 */
 
 #include "CPipelineHelper.h"
@@ -148,15 +157,15 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 		convert = gst_element_factory_make("videoconvert", "converter");
 
 		// depending on your platform, you may have to use some alternative encoder here.
-		encoder = gst_element_factory_make("omxh264enc", "omxh264Encoder");  // omxh264enc works good on Raspberry Pi
+		encoder = gst_element_factory_make("omxh264enc", "omxh264enc");  // omxh264enc works good on Raspberry Pi
 		if (!encoder)
 		{
 			cout << "Could not make omxh264enc encoder. Trying imxvpuenc_h264..." << endl;
-			encoder = gst_element_factory_make("imxvpuenc_h264", "imxh264Encoder"); // for i.MX devices.
+			encoder = gst_element_factory_make("imxvpuenc_h264", "imxvpuenc_h264"); // for i.MX devices.
 			if (!encoder)
 			{
 				cout << "Could not make imxvpuenc_h264 encoder. Trying x264enc..." << endl;
-				encoder = gst_element_factory_make("x264enc", "xh264Encoder"); // for other devices
+				encoder = gst_element_factory_make("x264enc", "x264enc"); // for other devices
 				if (!encoder)
 				{
 					cout << "Could not make x264enc encoder." << endl;
@@ -174,8 +183,12 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 		if (!sink){ cout << "Could not make sink" << endl; return false; }
 
 		// specify some settings on the elements
-		// encoder
-		// g_object_set(G_OBJECT(encoder), "bitrate", "500", NULL); // options vary by element. use gst-inspect-1.0 x264enc or similar to inspect the options
+		// Different encoders have different features you can set.
+		if (encoder->object.name == "x264enc")
+		{
+			// for compatibility on resource-limited systems, set the encoding preset "ultrafast". Lowest quality video, but lowest lag.
+			g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+		}
 
 		// filter2 capabilities
 		filter2_caps = gst_caps_new_simple("video/x-h264",
@@ -228,15 +241,15 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 		convert = gst_element_factory_make("videoconvert", "converter");
 
 		// depending on your platform, you may have to use some alternative encoder here.
-		encoder = gst_element_factory_make("omxh264enc", "h264Encoder"); // omxh264enc works good on Raspberry Pi
+		encoder = gst_element_factory_make("omxh264enc", "omxh264enc"); // omxh264enc works good on Raspberry Pi
 		if (!encoder)
 		{
 			cout << "Could not make omxh264enc encoder. Trying imxvpuenc_h264..." << endl;
-			encoder = gst_element_factory_make("imxvpuenc_h264", "h264Encoder"); // for i.MX devices.
+			encoder = gst_element_factory_make("imxvpuenc_h264", "imxvpuenc_h264"); // for i.MX devices.
 			if (!encoder)
 			{
 				cout << "Could not make imxvpuenc_h264 encoder. Trying x264enc..." << endl;
-				encoder = gst_element_factory_make("x264enc", "h264Encoder"); // for other devices
+				encoder = gst_element_factory_make("x264enc", "x264enc"); // for other devices
 				if (!encoder)
 				{
 					cout << "Could not make x264enc encoder." << endl;
@@ -254,7 +267,13 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 		if (!sink){ cout << "Could not make sink" << endl; return false; }
 
 		// Set up elements
-		//g_object_set( G_OBJECT(encoder), "bitrate", 500) // here you can setup your specific encoder. Use gst-inspect-1.0 <encodername> to get a list of available settings.
+		// Different encoders have different features you can set.
+		if (encoder->object.name == "x264enc")
+		{
+			// for compatibility on resource-limited systems, set the encoding preset "ultrafast". Lowest quality video, but lowest lag.
+			g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+		}
+
 		g_object_set(G_OBJECT(sink), "location", fileName.c_str(), NULL);
 
 		cout << "Source will output " << numFramesToRecord << " frames before sending EOS..." << endl;
