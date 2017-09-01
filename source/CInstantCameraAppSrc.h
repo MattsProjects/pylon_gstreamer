@@ -1,4 +1,4 @@
-/*  CInstantCameraForAppSrc.h: header file for CInstantCameraForAppSrc Class.
+/*  CInstantCameraAppSrc.h: header file for CInstantCameraAppSrc Class.
     This will extend the Basler Pylon::CInstantCamera Class to make it more convinient to use with GstAppSrc.
 
 	Copyright 2017 Matthew Breit <matt.breit@gmail.com>
@@ -28,13 +28,13 @@ using namespace Pylon;
 using namespace GenApi;
 using namespace std;
 
-// ******* CInstantCameraForAppSrc *******
+// ******* CInstantCameraAppSrc *******
 // Here we extend the Pylon CInstantCamera class with a few things to make it easier to integrate with Appsrc.
-class CInstantCameraForAppSrc : public CInstantCamera
+class CInstantCameraAppSrc : public CInstantCamera
 {
 public:
-	CInstantCameraForAppSrc();
-	~CInstantCameraForAppSrc();
+	CInstantCameraAppSrc();
+	~CInstantCameraAppSrc();
 
 	int GetWidth();
 	int GetHeight();

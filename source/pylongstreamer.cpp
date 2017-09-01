@@ -1,7 +1,7 @@
-/*  pylongstreamer.cpp: Sample application using CInstantCameraForAppSrc class.
+/*  pylongstreamer.cpp: Sample application using CInstantCameraAppSrc class.
     This will stream image data from a Basler camera to a GStreamer pipeline.
 	CPipelineHelper is included to help create sample pipelines
-	CInstantCameraForAppSrc and CPipelineHelper are intended to be used as modules, so that functionality can be added over time.
+	CInstantCameraAppSrc and CPipelineHelper are intended to be used as modules, so that functionality can be added over time.
 
 	Copyright 2017 Matthew Breit <matt.breit@gmail.com>
 
@@ -49,7 +49,7 @@ https://gstreamer.freedesktop.org/
 */
 
 
-#include "CInstantCameraForAppSrc.h"
+#include "CInstantCameraAppSrc.h"
 #include "CPipelineHelper.h"
 #include <gst/gst.h>
 
@@ -174,7 +174,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << endl;
 			cout << "Pipeline Example:" << endl;
 			cout << " +--------------------------------+                   +---------------------+    +---------- +    +----------------+" << endl;
-			cout << " | CInstantCameraForAppSrc        |                   | AppSrc              |    | convert   |    | autovideosink  |" << endl;
+			cout << " | CInstantCameraAppSrc        |                   | AppSrc              |    | convert   |    | autovideosink  |" << endl;
 			cout << " | (Camera & Pylon Grab Engine)   |<--- need-data <---|                     |    |           |    |                |" << endl;
 			cout << " |                                |--> push-buffer -->|                    src--sink        src--sink              |" << endl;
 			cout << " +--------------------------------+                   +---------------------+    +-----------+    +----------------+" << endl;
@@ -341,7 +341,7 @@ gint main(gint argc, gchar *argv[])
 
 		// The InstantCameraForAppSrc will manage the camera and driver
 		// and provide a source element to the GStreamer pipeline.
-		CInstantCameraForAppSrc camera;
+		CInstantCameraAppSrc camera;
 
 		// Initialize the camera and driver
 		cout << "Initializing camera and driver..." << endl;

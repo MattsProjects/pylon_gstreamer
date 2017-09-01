@@ -1,4 +1,4 @@
-/*  CInstantCameraForAppSrc.cpp: Definition file for CInstantCameraForAppSrc Class.
+/*  CInstantCameraAppSrc.cpp: Definition file for CInstantCameraAppSrc Class.
     This will extend the Basler Pylon::CInstantCamera Class to make it more convinient to use with GstAppSrc.
 
 	Copyright 2017 Matthew Breit <matt.breit@gmail.com>
@@ -36,7 +36,7 @@
 	| |freerun|                                                               |                          |    |         |    |              |
 	| <--------                                                               |                          |    |         |    |              |
 	+-------------------------------------------------------------------------+--------------------------+    +---------+    +--------------+
-	|<-------------------------------------- CInstantCameraForAppSrc ----------------------------------->|    |<----- CPipelineHelper ----->|
+	|<-------------------------------------- CInstantCameraAppSrc ----------------------------------->|    |<----- CPipelineHelper ----->|
 	|_InitCamera()
 	|_StartCamera()
 	|_StopCamera()
@@ -54,37 +54,37 @@
 	7. AppSrc provides the image to the next element in the pipeline via it's source pad.
 */
 
-#include "CInstantCameraForAppSrc.h"
+#include "CInstantCameraAppSrc.h"
 
 using namespace Pylon;
 using namespace GenApi;
 using namespace std;
 
 // Here we extend the Pylon CInstantCamera class with a few things to make it easier to integrate with Appsrc.
-CInstantCameraForAppSrc::CInstantCameraForAppSrc()
+CInstantCameraAppSrc::CInstantCameraAppSrc()
 {
 	// initialize Pylon runtime
 	Pylon::PylonInitialize();
 }
 
-CInstantCameraForAppSrc::~CInstantCameraForAppSrc()
+CInstantCameraAppSrc::~CInstantCameraAppSrc()
 {
 	CloseCamera();
 	// free resources allocated by pylon runtime.
 	Pylon::PylonTerminate();
 }
 
-int CInstantCameraForAppSrc::GetWidth()
+int CInstantCameraAppSrc::GetWidth()
 {
 	return CIntegerPtr(GetNodeMap().GetNode("Width"))->GetValue();
 }
 
-int CInstantCameraForAppSrc::GetHeight()
+int CInstantCameraAppSrc::GetHeight()
 {
 	return CIntegerPtr(GetNodeMap().GetNode("Height"))->GetValue();
 }
 
-double CInstantCameraForAppSrc::GetFrameRate()
+double CInstantCameraAppSrc::GetFrameRate()
 {
 	if (GenApi::IsAvailable(GetNodeMap().GetNode("ResultingFrameRateAbs")))
 	  return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRateAbs"))->GetValue();
@@ -93,7 +93,7 @@ double CInstantCameraForAppSrc::GetFrameRate()
 }
 
 // Open the camera and adjust some settings
-bool CInstantCameraForAppSrc::InitCamera(string serialnumber, int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger)
+bool CInstantCameraAppSrc::InitCamera(string serialnumber, int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger)
 {
 	try
 	{
@@ -273,7 +273,7 @@ bool CInstantCameraForAppSrc::InitCamera(string serialnumber, int width, int hei
 }
 
 // Start the image grabbing of camera and driver
-bool CInstantCameraForAppSrc::StartCamera()
+bool CInstantCameraAppSrc::StartCamera()
 {
 	try
 	{
@@ -330,7 +330,7 @@ bool CInstantCameraForAppSrc::StartCamera()
 }
 
 // Retrieve an image from the driver and place it into an image container
-bool CInstantCameraForAppSrc::retrieve_image()
+bool CInstantCameraAppSrc::retrieve_image()
 {
 	try
 	{
@@ -360,12 +360,12 @@ bool CInstantCameraForAppSrc::retrieve_image()
 		// if the Grab Result indicates success, then we have a good image within the result.
 		if (ptrGrabResult->GrabSucceeded())
 		{
-			// if we have a color image, and the image is not RGB, convert it to RGB and place it into the CInstantCameraForAppSrc::image for GStreamer
+			// if we have a color image, and the image is not RGB, convert it to RGB and place it into the CInstantCameraAppSrc::image for GStreamer
 			if (m_isColor == true && m_FormatConverter.ImageHasDestinationFormat(ptrGrabResult) == false)
 			{
 				m_FormatConverter.Convert(m_Image, ptrGrabResult);
 			}
-			// else if we have an RGB image or a Mono image, simply copy the image to CInstantCameraForAppSrc::image
+			// else if we have an RGB image or a Mono image, simply copy the image to CInstantCameraAppSrc::image
 			// (push a copy of the image to the pipeline instead of a pointer in case we retrieve another image while the first is still going through the pipeline).
 			else if (m_FormatConverter.ImageHasDestinationFormat(ptrGrabResult) == true || Pylon::IsMonoImage(ptrGrabResult->GetPixelType()))
 			{
@@ -399,7 +399,7 @@ bool CInstantCameraForAppSrc::retrieve_image()
 }
 
 // Stop the image grabbing of camera and driver
-bool CInstantCameraForAppSrc::StopCamera()
+bool CInstantCameraAppSrc::StopCamera()
 {
 	try
 	{
@@ -422,7 +422,7 @@ bool CInstantCameraForAppSrc::StopCamera()
 }
 
 // Close the camera and do any other cleanup needed
-bool CInstantCameraForAppSrc::CloseCamera()
+bool CInstantCameraAppSrc::CloseCamera()
 {
 	try
 	{
@@ -445,7 +445,7 @@ bool CInstantCameraForAppSrc::CloseCamera()
 }
 
 // we will provide the application a configured gst source element to match the camera.
-GstElement* CInstantCameraForAppSrc::GetAppSrc()
+GstElement* CInstantCameraAppSrc::GetAppSrc()
 {
 	try
 	{
@@ -490,12 +490,12 @@ GstElement* CInstantCameraForAppSrc::GetAppSrc()
 }
 
 // the callback that's fired when the appsrc element sends the 'need-data' signal.
-void CInstantCameraForAppSrc::cb_need_data(GstElement *appsrc, guint unused_size, gpointer user_data)
+void CInstantCameraAppSrc::cb_need_data(GstElement *appsrc, guint unused_size, gpointer user_data)
 {
 	try
 	{
 		// remember, the "user data" the signal passes to the callback is really the address of the Instant Camera
-		CInstantCameraForAppSrc *pCamera = (CInstantCameraForAppSrc*)user_data;
+		CInstantCameraAppSrc *pCamera = (CInstantCameraAppSrc*)user_data;
 
 		// If we request data, and discover the camera is removed, send the EOS signal.
 		if (pCamera->IsCameraDeviceRemoved() == true)
@@ -505,7 +505,7 @@ void CInstantCameraForAppSrc::cb_need_data(GstElement *appsrc, guint unused_size
 			g_signal_emit_by_name(appsrc, "end-of-stream", &ret);
 		}
 
-		// tell the CInstantCameraForAppSrc to Retrieve an Image. It will pull an image from the pylon driver, and place it into it's CInstantCameraForAppSrc::image container.
+		// tell the CInstantCameraAppSrc to Retrieve an Image. It will pull an image from the pylon driver, and place it into it's CInstantCameraAppSrc::image container.
 		pCamera->retrieve_image();
 	}
 	catch (GenICam::GenericException &e)

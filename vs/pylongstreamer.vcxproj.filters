@@ -10,21 +10,21 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\CInstantCameraForAppSrc.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\source\CPipelineHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\source\pylongstreamer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\source\CInstantCameraAppSrc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\source\CInstantCameraForAppSrc.h">
+    <ClInclude Include="..\source\CPipelineHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\source\CPipelineHelper.h">
+    <ClInclude Include="..\source\CInstantCameraAppSrc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
