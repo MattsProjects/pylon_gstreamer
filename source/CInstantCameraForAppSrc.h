@@ -22,6 +22,7 @@
 */
 
 #include <pylon/PylonIncludes.h>
+#include <gst/gst.h>
 
 using namespace Pylon;
 using namespace GenApi;
@@ -32,23 +33,18 @@ using namespace std;
 class CInstantCameraForAppSrc : public CInstantCamera
 {
 public:
-	CInstantCameraForAppSrc(string serialnumber, int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger);
+	CInstantCameraForAppSrc();
 	~CInstantCameraForAppSrc();
 
-	bool InitCamera();
+	int GetWidth();
+	int GetHeight();
+	bool InitCamera(string serialnumber, int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger);
 	bool StartCamera();
 	bool StopCamera();
 	bool CloseCamera();
-	bool RetrieveImage();
-	bool IsColor();
-	bool IsOnDemand();
-	bool IsTriggered();
-	void *GetImageBuffer();
-	size_t GetImageSize();
-	int GetWidth();
-	int GetHeight();
 	double GetFrameRate();
-
+	GstElement* GetAppSrc();	
+	
 private:
 	int m_width;
 	int m_height;
@@ -60,4 +56,8 @@ private:
 	string m_serialNumber;
 	Pylon::CPylonImage m_Image;
 	Pylon::CImageFormatConverter m_FormatConverter;
+	GstElement* m_source;
+	GstBuffer* m_gstBuffer;
+	bool retrieve_image();
+	static void cb_need_data(GstElement *appsrc, guint unused_size, gpointer user_data);
 };
