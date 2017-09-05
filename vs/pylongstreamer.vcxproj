@@ -186,12 +186,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\CInstantCameraForAppSrc.cpp" />
+    <ClCompile Include="..\source\CInstantCameraAppSrc.cpp" />
     <ClCompile Include="..\source\CPipelineHelper.cpp" />
     <ClCompile Include="..\source\pylongstreamer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\source\CInstantCameraForAppSrc.h" />
+    <ClInclude Include="..\source\CInstantCameraAppSrc.h" />
     <ClInclude Include="..\source\CPipelineHelper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

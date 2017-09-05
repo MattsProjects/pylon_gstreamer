@@ -1,4 +1,4 @@
-/*  CInstantCameraForAppSrc.cpp: Definition file for CInstantCameraForAppSrc Class.
+/*  CInstantCameraAppSrc.cpp: Definition file for CInstantCameraAppSrc Class.
     This will extend the Basler Pylon::CInstantCamera Class to make it more convinient to use with GstAppSrc.
 
 	Copyright 2017 Matthew Breit <matt.breit@gmail.com>
@@ -20,76 +20,71 @@
 	IS OUTSIDE THE SCOPE OF THIS LICENSE.
 */
 
-#include "CInstantCameraForAppSrc.h"
+/*
+	A Typical Image Streaming Pipeline would look as follows:
+
+	|<----------- Camera Acquisition & Pylon Grabbing ----------------------->|<----------- GStreamer Pipeline for Display----------------->|
+	+-------------------------------------------------------------------------+--------------------------+    +---------+    +--------------+
+	|                                                       GetGstAppSrc()------>source element          |    | element |    | sink element |
+	|                                                                         |                          |    |         |    |              |
+	|                                    RetrieveImage()<---cb_need_data()<-------"need-data"            |    |         |    |              |
+	|            ------------------> --> 1. RetrieveResult()                  |                          |    |         |    |              |
+	|            | LatestImageOnly |     2. Convert to RGB if color           |                          |    |         |    |              |
+	|            <------------------     3. Put into a [pylonimage]           |                          |    |         |    |              |
+	| [Camera]-->[Pylon Grab Engine]     4. Wrap in a gst buffer              |                          |    |         |    |              |
+	| -------->                          5. "push-buffer" signal--------------------------------------->src--sink      src--sink            |
+	| |freerun|                                                               |                          |    |         |    |              |
+	| <--------                                                               |                          |    |         |    |              |
+	+-------------------------------------------------------------------------+--------------------------+    +---------+    +--------------+
+	|<-------------------------------------- CInstantCameraAppSrc ----------------------------------->|    |<----- CPipelineHelper ----->|
+	|_InitCamera()
+	|_StartCamera()
+	|_StopCamera()
+	|_CloseCamera()
+	|_GetWidth()
+	|_GetHeight()
+	|_GetFrameRate()
+
+	1. The camera and grab engine in this case are always freerunning (unless ondemand is used, then it sits idle and sends a trigger when an image is needed)
+	2. LatestImageOnly strategy means the Grab Engine keeps the latest image received ready for retrieval.
+	3. When AppSrc needs data, it sends the "need-data" signal.
+	4. This fires cb_need_data which calls RetrieveImage().
+	5. RetrieveImage() retrieves the image from the Grab Engine, converts it to RGB, and places it in a PylonImage container.
+	6. The memory of the PylonImage container is then wrapped and pushed to AppSrc's src pad by sending the "push-buffer" signal.
+	7. AppSrc provides the image to the next element in the pipeline via it's source pad.
+*/
+
+#include "CInstantCameraAppSrc.h"
 
 using namespace Pylon;
 using namespace GenApi;
 using namespace std;
 
 // Here we extend the Pylon CInstantCamera class with a few things to make it easier to integrate with Appsrc.
-CInstantCameraForAppSrc::CInstantCameraForAppSrc(string serialnumber, int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger)
+CInstantCameraAppSrc::CInstantCameraAppSrc()
 {
 	// initialize Pylon runtime
 	Pylon::PylonInitialize();
-
-	m_serialNumber = serialnumber;
-	m_width = width;
-	m_height = height;
-	m_frameRate = framesPerSecond;
-	m_isOnDemand = useOnDemand;
-	m_isTriggered = useTrigger;
-
-	m_isInitialized = false;
-
-	// We're going to use GStreamer's RGB format in pipelines, so we may need to use Pylon to convert the camera's image to RGB (depending on the camera used)
-	EPixelType pixelType = Pylon::EPixelType::PixelType_RGB8packed;
-	m_FormatConverter.OutputPixelFormat.SetValue(pixelType);
-
-	// on the off chance that the very first m_Image can't be supplied (ie: missing trigger signal), Reset() lets us initialize it to a blank image so we can push at least that.
-	m_Image.Reset(pixelType, m_width, m_height);
-
-	// since Image On Demand uses software trigger, it cannot be used with isTriggered
-	if (m_isOnDemand == true && m_isTriggered == true)
-	{
-		cout << "Cannot use both Image-on-Demand and Triggered mode. Using only Triggered Mode." << endl;
-		m_isOnDemand = false;
-	}
 }
-CInstantCameraForAppSrc::~CInstantCameraForAppSrc()
+
+CInstantCameraAppSrc::~CInstantCameraAppSrc()
 {
 	CloseCamera();
 	// free resources allocated by pylon runtime.
 	Pylon::PylonTerminate();
 }
-bool CInstantCameraForAppSrc::IsColor()
-{
-	return m_isColor;
-}
-bool CInstantCameraForAppSrc::IsOnDemand()
-{
-	return m_isOnDemand;
-}
-bool CInstantCameraForAppSrc::IsTriggered()
-{
-	return m_isTriggered;
-}
-void* CInstantCameraForAppSrc::GetImageBuffer()
-{
-	return m_Image.GetBuffer();
-}
-size_t CInstantCameraForAppSrc::GetImageSize()
-{
-	return m_Image.GetImageSize();
-}
-int CInstantCameraForAppSrc::GetWidth()
+
+int CInstantCameraAppSrc::GetWidth()
 {
 	return CIntegerPtr(GetNodeMap().GetNode("Width"))->GetValue();
 }
-int CInstantCameraForAppSrc::GetHeight()
+
+int CInstantCameraAppSrc::GetHeight()
 {
 	return CIntegerPtr(GetNodeMap().GetNode("Height"))->GetValue();
 }
-double CInstantCameraForAppSrc::GetFrameRate()
+
+double CInstantCameraAppSrc::GetFrameRate()
 {
 	if (GenApi::IsAvailable(GetNodeMap().GetNode("ResultingFrameRateAbs")))
 	  return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRateAbs"))->GetValue();
@@ -98,14 +93,29 @@ double CInstantCameraForAppSrc::GetFrameRate()
 }
 
 // Open the camera and adjust some settings
-bool CInstantCameraForAppSrc::InitCamera()
+bool CInstantCameraAppSrc::InitCamera(string serialnumber, int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger)
 {
 	try
 	{
+		m_isInitialized = false;
+
+		m_serialNumber = serialnumber;
+		m_width = width;
+		m_height = height;
+		m_frameRate = framesPerSecond;
+		m_isOnDemand = useOnDemand;
+		m_isTriggered = useTrigger;
+
+		// since Image On Demand uses software trigger, it cannot be used with isTriggered
+		if (m_isOnDemand == true && m_isTriggered == true)
+		{
+			cout << "Cannot use both Image-on-Demand and Triggered mode. Using only Triggered Mode." << endl;
+			m_isOnDemand = false;
+		}
+
 		// use the first camera device found. You can also populate a CDeviceInfo object with information like serial number, etc. to choose a specific camera
 		if (m_serialNumber == "")
 			Attach(CTlFactory::GetInstance().CreateFirstDevice());
-
 		else
 		{
 			CDeviceInfo info;
@@ -123,7 +133,7 @@ bool CInstantCameraForAppSrc::InitCamera()
 		// Also, some features may have different names (AcquisitionFrameRate vs. AcquisitionFrameRateAbs) due to different versions of the GeniCam SFNC standard.
 		// Here we manage this.
 
-		// First, enable migration mode in usb cameras so that we can solve the 'same feature has different name' topic.
+		// You can enable migration mode in usb cameras so that we can solve the 'same feature has different name' topic.
 		// Migration mode lets us access features by their old names too.
 		// We skip this here because the BCON interface also uses SFNC3 names, but does not support migration mode.
 		// Since we want to support BCON also in this program, we will manage each feature with a different name manually.
@@ -139,8 +149,8 @@ bool CInstantCameraForAppSrc::InitCamera()
 				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(m_frameRate); // this is called "AcquisitionFrameRate" (not abs) in usb cameras. Migration mode lets us use the old name though.
 			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRate")))
 				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(m_frameRate); // BCON and USB use SFNC3 names.
-		  
 		}
+
 		if (IsAvailable(GetNodeMap().GetNode("Width")))
 			GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->SetValue(m_width);
 		if (IsAvailable(GetNodeMap().GetNode("Height")))
@@ -224,8 +234,26 @@ bool CInstantCameraForAppSrc::InitCamera()
 		//if (colorCamera == true && GenApi::IsAvailable(PixelFormat->GetEntryByName("RGB8")) == true)
 		//PixelFormat->FromString("RGB8");
 
-		// setup some driver settings
-		MaxNumBuffer.SetValue(20); // in case we use a grab strategy besides 'latest image only'
+		// Configure some Pylon driver settings
+		//MaxNumBuffer.SetValue(20); // in case we use a grab strategy besides 'latest image only'
+
+		// Configure the Pylon image format converter
+		// We're going to use GStreamer's RGB format in pipelines, so we may need to use Pylon to convert the camera's image to RGB (depending on the camera used)
+		EPixelType pixelType = Pylon::EPixelType::PixelType_RGB8packed;
+		m_FormatConverter.OutputPixelFormat.SetValue(pixelType);
+
+		// Initialize the Pylon image to a blank image on the off chance that the very first m_Image can't be supplied by the instant camera (ie: missing trigger signal)
+		m_Image.Reset(pixelType, m_width, m_height);
+
+		// create a gst buffer wrapping the image container's buffer
+		m_gstBuffer = gst_buffer_new_wrapped_full(
+			(GstMemoryFlags)GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS,
+			(gpointer)m_Image.GetBuffer(),
+			m_Image.GetImageSize(),
+			0,
+			m_Image.GetImageSize(),
+			NULL,
+			NULL);
 
 		m_isInitialized = true;
 
@@ -245,7 +273,7 @@ bool CInstantCameraForAppSrc::InitCamera()
 }
 
 // Start the image grabbing of camera and driver
-bool CInstantCameraForAppSrc::StartCamera()
+bool CInstantCameraAppSrc::StartCamera()
 {
 	try
 	{
@@ -302,7 +330,7 @@ bool CInstantCameraForAppSrc::StartCamera()
 }
 
 // Retrieve an image from the driver and place it into an image container
-bool CInstantCameraForAppSrc::RetrieveImage()
+bool CInstantCameraAppSrc::retrieve_image()
 {
 	try
 	{
@@ -332,24 +360,29 @@ bool CInstantCameraForAppSrc::RetrieveImage()
 		// if the Grab Result indicates success, then we have a good image within the result.
 		if (ptrGrabResult->GrabSucceeded())
 		{
-			// if we have a color image, and the image is not RGB, convert it to RGB and place it into the CInstantCameraForAppSrc::image for GStreamer
+			// if we have a color image, and the image is not RGB, convert it to RGB and place it into the CInstantCameraAppSrc::image for GStreamer
 			if (m_isColor == true && m_FormatConverter.ImageHasDestinationFormat(ptrGrabResult) == false)
 			{
 				m_FormatConverter.Convert(m_Image, ptrGrabResult);
 			}
-			// else if we have an RGB image or a Mono image, simply copy the image to CInstantCameraForAppSrc::image
+			// else if we have an RGB image or a Mono image, simply copy the image to CInstantCameraAppSrc::image
 			// (push a copy of the image to the pipeline instead of a pointer in case we retrieve another image while the first is still going through the pipeline).
 			else if (m_FormatConverter.ImageHasDestinationFormat(ptrGrabResult) == true || Pylon::IsMonoImage(ptrGrabResult->GetPixelType()))
 			{
 				m_Image.CopyImage(ptrGrabResult);
 			}
+
 		}
 		else
 		{
 			// If a Grab Failed, the Grab Result is tagged with information about why it failed (technically you could even still access the pixel data to look at the bad image too).
 			cout << "Pylon: Grab Result Failed! Error: " << ptrGrabResult->GetErrorDescription() << endl;
-			return false;
+			cout << "Will push last good image instead..." << endl;
 		}
+
+		// Push the gst buffer wrapping the image buffer to the source pads of the AppSrc element, where it's picked up by the rest of the pipeline
+		GstFlowReturn ret;
+		g_signal_emit_by_name(m_source, "push-buffer", m_gstBuffer, &ret);
 
 		return true;
 	}
@@ -366,7 +399,7 @@ bool CInstantCameraForAppSrc::RetrieveImage()
 }
 
 // Stop the image grabbing of camera and driver
-bool CInstantCameraForAppSrc::StopCamera()
+bool CInstantCameraAppSrc::StopCamera()
 {
 	try
 	{
@@ -389,7 +422,7 @@ bool CInstantCameraForAppSrc::StopCamera()
 }
 
 // Close the camera and do any other cleanup needed
-bool CInstantCameraForAppSrc::CloseCamera()
+bool CInstantCameraAppSrc::CloseCamera()
 {
 	try
 	{
@@ -409,4 +442,79 @@ bool CInstantCameraForAppSrc::CloseCamera()
 		cerr << "An exception occurred: " << endl << e.what() << endl;
 		return false;
 	}
+}
+
+// we will provide the application a configured gst source element to match the camera.
+GstElement* CInstantCameraAppSrc::GetAppSrc()
+{
+	try
+	{
+		// create an appsrc element
+		m_source = gst_element_factory_make("appsrc", "source");
+
+		// setup the appsrc properties
+		g_object_set(G_OBJECT(m_source),
+			"stream-type", 0, // 0 = GST_APP_STREAM_TYPE_STREAM
+			"format", GST_FORMAT_TIME,
+			"is-live", TRUE,
+			"do-timestamp", TRUE, // required for H264 streaming
+			NULL);
+
+		// setup the appsrc caps (what kind of video is coming out of the source element?
+		string format = "RGB";
+		if (m_isColor == false)
+			format = "GRAY8";
+		
+		g_object_set(G_OBJECT(m_source), "caps",
+			gst_caps_new_simple("video/x-raw",
+			"format", G_TYPE_STRING, format.c_str(),
+			"width", G_TYPE_INT, this->GetWidth(), // just in case the camera used a different value than our desired, due to increment constraints
+			"height", G_TYPE_INT, this->GetHeight(),
+			"framerate", GST_TYPE_FRACTION, (int)this->GetFrameRate(), 1, NULL), NULL); // just in case we desired an u
+
+		// connect the appsrc to the cb_need_data callback function. When appsrc sends the need-data signal, cb_need_data will run.
+		g_signal_connect(m_source, "need-data", G_CALLBACK(cb_need_data), this);
+
+		return m_source;
+	}
+	catch (GenICam::GenericException &e)
+	{
+		cerr << "An exception occured: " << endl << e.GetDescription() << endl;
+		return m_source;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred: " << endl << e.what() << endl;
+		return m_source;
+	}
+}
+
+// the callback that's fired when the appsrc element sends the 'need-data' signal.
+void CInstantCameraAppSrc::cb_need_data(GstElement *appsrc, guint unused_size, gpointer user_data)
+{
+	try
+	{
+		// remember, the "user data" the signal passes to the callback is really the address of the Instant Camera
+		CInstantCameraAppSrc *pCamera = (CInstantCameraAppSrc*)user_data;
+
+		// If we request data, and discover the camera is removed, send the EOS signal.
+		if (pCamera->IsCameraDeviceRemoved() == true)
+		{
+			cout << "Camera Removed!" << endl;
+			GstFlowReturn ret;
+			g_signal_emit_by_name(appsrc, "end-of-stream", &ret);
+		}
+
+		// tell the CInstantCameraAppSrc to Retrieve an Image. It will pull an image from the pylon driver, and place it into it's CInstantCameraAppSrc::image container.
+		pCamera->retrieve_image();
+	}
+	catch (GenICam::GenericException &e)
+	{
+		cerr << "An exception occured in cb_need_data(): " << endl << e.GetDescription() << endl;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in cb_need_data(): " << endl << e.what() << endl;
+	}
+
 }

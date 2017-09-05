@@ -256,6 +256,12 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 		if (!sink){ cout << "Could not make sink" << endl; return false; }
 
 		// Set up elements
+
+		// instead of capturing indefinitely, we want to send the EOS signal after a specified amount of images.
+		g_object_set(G_OBJECT(m_source),
+			"num-buffers", numFramesToRecord,
+			NULL);
+
 		// Different encoders have different features you can set.
 		if (encoder->object.name == "x264enc")
 		{
