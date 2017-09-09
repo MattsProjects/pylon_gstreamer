@@ -200,7 +200,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << " -framebuffer <fbdevice> (directs raw image stream to Linux framebuffer. eg: /dev/fb0)" << endl;
 			cout << endl;
 			cout << "Example: " << endl;
-			cout << " pylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -scaled 320 240 -h264file mymovie.h264" << endl;
+			cout << " pylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -rescale 320 240 -h264file mymovie.h264" << endl;
 			cout << endl;
 			cout << "Quick-Start Example:" << endl;
 			cout << " pylongstreamer -window" << endl;
@@ -242,7 +242,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 					return -1;
 				}
 			}
-			else if (string(argv[i]) == "-scaled")
+			else if (string(argv[i]) == "-rescale")
 			{
 				if (argv[i + 1] != NULL)
 					scaledWidth = atoi(argv[i + 1]);
