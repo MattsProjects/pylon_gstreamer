@@ -145,12 +145,14 @@ void IntHandler(int dummy)
 // ******* END variables, call-backs, etc. for use with gstreamer ********
 
 // *********** Command line argument variables and parser **************
-// quick-start settings for AOI and framerate
-int width = 640;
-int height = 480;
-int frameRate = 30;
+// quick-start settings for AOI and framerate. Use maximum possible camera resultion and maximum possible framerate @ resolution.
+int width = -1;
+int height = -1;
+int frameRate = -1;
 
 int numImagesToRecord = -1; // capture indefinitley unless otherwise specified.
+int scaledWidth = -1; // do not scale by default
+int scaledHeight = -1;
 bool h264stream = false;
 bool h264file = false;
 bool display = false;
@@ -170,34 +172,38 @@ int ParseCommandLine(gint argc, gchar *argv[])
 		{
 			cout << endl;
 			cout << "PylonGStreamer: " << endl;
-			cout << " Example of using Basler's Pylon API with GStreamer's GstAppSrc element." << endl;
+			cout << " Demo of InstantCameraAppSrc class (and PipelineHelper)." << endl;
 			cout << endl;
-			cout << "Pipeline Example:" << endl;
-			cout << " +--------------------------------+                   +---------------------+    +---------- +    +----------------+" << endl;
-			cout << " | CInstantCameraAppSrc        |                   | AppSrc              |    | convert   |    | autovideosink  |" << endl;
-			cout << " | (Camera & Pylon Grab Engine)   |<--- need-data <---|                     |    |           |    |                |" << endl;
-			cout << " |                                |--> push-buffer -->|                    src--sink        src--sink              |" << endl;
-			cout << " +--------------------------------+                   +---------------------+    +-----------+    +----------------+" << endl;
+			cout << "Concept Overview:" << endl;
+			cout << " <----- InstantCameraAppSrc ------>    <------------ PipelineHelper ----------->" << endl;
+			cout << " +--------------------------------+    +---------+    +---------+    +---------+" << endl;
+			cout << " | source                         |    | element |    | element |    | sink    |" << endl;
+			cout << " | (camera + driver + GstAppSrc)  |    |         |    |         |    |         |" << endl;
+			cout << " |                               src--sink      src--sink      src--sink       |" << endl;
+			cout << " +--------------------------------+    +---------+    +---------+    +---------+" << endl;
 			cout << endl;
 			cout << "Usage:" << endl;
-			cout << " pylongstreamer -camera <serialnumber> -width <columns> -height <rows> -framerate <fps> -ondemand -usetrigger -<pipeline> <options>" << endl;
+			cout << " pylongstreamer -options -pipeline" << endl;
 			cout << endl;
-			cout << "Example: " << endl;
-			cout << " pylongstreamer -camera 12345678 -width 320 -height 240 -framerate 15 -h264file mymovie.h264" << endl;
-			cout << endl;
-			cout << "Quick-Start Example (use first camera found, display in window, 640x480, 30fps):" << endl;
-			cout << " pylongstreamer -display" << endl;
-			cout << endl;
-			cout << "Notes:" << endl;
-			cout << " -camera: If not used, we will use first detected camera." << endl;
-			cout << " -ondemand: Instead of freerunning, camera will be software triggered with each need-data signal. May lower CPU load, but may be less 'real-time'." << endl;
-			cout << " -usetrigger: Camera will expect to be hardware triggered by user via IO ports (cannot be used with -ondemand)." << endl;
+			cout << "Options: " << endl;
+			cout << " -camera <serialnumber> (Use a specific camera. If not specified, will use first camera found.)" << endl;
+			cout << " -aoi <width> <height> (Camera's Area Of Interest. If not specified, will use camera's maximum.)" << endl;
+			cout << " -rescale <width> <height> (Will rescale the image for the pipeline if desired.)" << endl;			
+			cout << " -framerate <fps> (If not specified, will use camera's maximum under current settings.)" << endl;
+			cout << " -ondemand (Will software trigger the camera when needed instead of using continuous free run. May lower CPU load.)" << endl;
+			cout << " -usetrigger (Will configure the camera to expect a hardware trigger on IO Line 1. eg: TTL signal.)" << endl;
 			cout << endl;
 			cout << "Pipeline Examples (pick one):" << endl;
 			cout << " -h264stream <ipaddress> (Encodes images as h264 and transmits stream to another PC running a GStreamer receiving pipeline.)" << endl;
-			cout << " -h264file <filename> <number of images> (Encodes images as h264 and saves stream to local file.)" << endl;
-			cout << " -display (displays the raw image stream in a window on the local machine.)" << endl;
-			cout << " -framebuffer <fbdevice> (directs raw image stream to Linux framebuffer, e.g. /dev/fb0). Useful when using additional displays" << endl;
+			cout << " -h264file <filename> <number of images> (Encodes images as h264 and records stream to local file.)" << endl;
+			cout << " -window (displays the raw image stream in a window on the local machine.)" << endl;
+			cout << " -framebuffer <fbdevice> (directs raw image stream to Linux framebuffer. eg: /dev/fb0)" << endl;
+			cout << endl;
+			cout << "Example: " << endl;
+			cout << " pylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -scaled 320 240 -h264file mymovie.h264" << endl;
+			cout << endl;
+			cout << "Quick-Start Example:" << endl;
+			cout << " pylongstreamer -window" << endl;
 			cout << endl;
 			cout << "Note:" << endl;
 			cout << " Some GStreamer elements (plugins) used in the pipeline examples may not be available on all systems. Consult GStreamer for more information:" << endl;
@@ -209,7 +215,69 @@ int ParseCommandLine(gint argc, gchar *argv[])
 
 		for (int i = 1; i < argc; i++)
 		{
-			if (string(argv[i]) == "-h264stream")
+			if (string(argv[i]) == "-camera")
+			{
+				if (argv[i + 1] != NULL)
+					serialNumber = string(argv[i + 1]);
+				else
+				{
+					cout << "Serial number not specified. eg: -camera 21045367" << endl;
+					return -1;
+				}
+			}
+			else if (string(argv[i]) == "-aoi")
+			{
+				if (argv[i + 1] != NULL)
+					width = atoi(argv[i + 1]);
+				else
+				{
+					cout << "AOI width not specified. eg: -aoi 320 240" << endl;
+					return -1;
+				}
+				if (argv[i + 2] != NULL)
+					height = atoi(argv[i + 2]);
+				else
+				{
+					cout << "AOI height not specified. eg: -aoi 320 240" << endl;
+					return -1;
+				}
+			}
+			else if (string(argv[i]) == "-scaled")
+			{
+				if (argv[i + 1] != NULL)
+					scaledWidth = atoi(argv[i + 1]);
+				else
+				{
+					cout << "Scaling width not specified. eg: -scaled 320 240" << endl;
+					return -1;
+				}
+				if (argv[i + 2] != NULL)
+					scaledHeight = atoi(argv[i + 2]);
+				else
+				{
+					cout << "Scaling height not specified. eg: -scaled 320 240" << endl;
+					return -1;
+				}
+			}
+			else if (string(argv[i]) == "-framerate")
+			{
+				if (argv[i + 1] != NULL)
+					frameRate = atoi(argv[i + 1]);
+				else
+				{
+					cout << "Framerate not specified. eg: -framerate 100" << endl;
+					return -1;
+				}
+			}
+			else if (string(argv[i]) == "-ondemand")
+			{
+				onDemand = true;
+			}
+			else if (string(argv[i]) == "-usetrigger")
+			{
+				useTrigger = true;
+			}
+			else if (string(argv[i]) == "-h264stream")
 			{
 				h264stream = true;
 				if (argv[i + 1] != NULL)
@@ -238,7 +306,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 					return -1;
 				}
 			}
-			else if (string(argv[i]) == "-display")
+			else if (string(argv[i]) == "-window")
 			{
 				display = true;
 			}
@@ -253,48 +321,33 @@ int ParseCommandLine(gint argc, gchar *argv[])
 					return -1;
 				}
 			}
+			// deprecated
+			else if (string(argv[i]) == "-display")
+			{
+				display = true;
+			}
+			// deprecated
 			else if (string(argv[i]) == "-width")
 			{
 				if (argv[i + 1] != NULL)
 					width = atoi(argv[i + 1]);
 				else
+				{
+					cout << "Width not specified. eg: -width 640" << endl;
 					return -1;
+				}
 			}
+			// deprecated
 			else if (string(argv[i]) == "-height")
 			{
 				if (argv[i + 1] != NULL)
 					height = atoi(argv[i + 1]);
 				else
-					return -1;
-			}
-			else if (string(argv[i]) == "-framerate")
-			{
-				if (argv[i + 1] != NULL)
-					frameRate = atoi(argv[i + 1]);
-				else
 				{
-					cout << "Framerate not specified. eg: -framerate 100" << endl;
+					cout << "Height not specified. eg: -height 480" << endl;
 					return -1;
 				}
-			}
-			else if (string(argv[i]) == "-camera")
-			{
-				if (argv[i + 1] != NULL)
-					serialNumber = string(argv[i + 1]);
-				else
-				{
-					cout << "Serial number not specified. eg: -camera 21045367" << endl;
-					return -1;
-				}
-			}
-			else if (string(argv[i]) == "-ondemand")
-			{
-				onDemand = true;
-			}
-			else if (string(argv[i]) == "-usetrigger")
-			{
-				useTrigger = true;
-			}
+			}			
 		}
 
 		if (display == false && framebuffer == false && h264file == false && h264stream == false)
@@ -348,9 +401,10 @@ gint main(gint argc, gchar *argv[])
 		if (camera.InitCamera(serialNumber, width, height, frameRate, onDemand, useTrigger) == false)
 			return -1;
 
-		cout << "Using Camera        : " << camera.GetDeviceInfo().GetFriendlyName() << endl;
-		cout << "Image Dimensions    : " << camera.GetWidth() << "x" << camera.GetHeight() << endl;
-		cout << "Resulting FrameRate : " << camera.GetFrameRate() << endl;
+		cout << "Using Camera             : " << camera.GetDeviceInfo().GetFriendlyName() << endl;
+		cout << "Camera Area Of Interest  : " << camera.GetWidth() << "x" << camera.GetHeight() << endl;
+		cout << "Camera Speed             : " << camera.GetFrameRate() << " fps" << endl;
+		cout << "Images will be scaled to : " << scaledWidth << "x" << scaledHeight << endl;
 
 		// create a new pipeline to add elements too
 		pipeline = gst_pipeline_new("pipeline");
@@ -367,9 +421,11 @@ gint main(gint argc, gchar *argv[])
 		// The PipelineHelper will manage the configuration of GStreamer pipelines.  
 		// The pipeline helper can be expanded to create several kinds of pipelines
 		// as these can depend heavily on the application and host capabilities.
-		CPipelineHelper myPipelineHelper(pipeline, source);
+		// Rescaling the image is optional.
+		CPipelineHelper myPipelineHelper(pipeline, source, scaledWidth, scaledHeight);
 
 		bool pipelineBuilt = false;
+
 		if (display == true)
 			pipelineBuilt = myPipelineHelper.build_pipeline_display();
 		else if (h264stream == true)
@@ -410,13 +466,13 @@ gint main(gint argc, gchar *argv[])
 	}
 	catch (GenICam::GenericException &e)
 	{
-		cerr << "An exception occured: " << endl << e.GetDescription() << endl;
+		cerr << "An exception occured in main(): " << endl << e.GetDescription() << endl;
 		return -1;
 
 	}
 	catch (std::exception &e)
 	{
-		cerr << "An exception occurred: " << endl << e.what() << endl;
+		cerr << "An exception occurred in main(): " << endl << e.what() << endl;
 		return -1;
 	}
 
