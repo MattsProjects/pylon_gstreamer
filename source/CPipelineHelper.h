@@ -31,7 +31,7 @@ using namespace std;
 class CPipelineHelper
 {
 public:
-	CPipelineHelper(GstElement *pipeline, GstElement *source);
+	CPipelineHelper(GstElement *pipeline, GstElement *source, int scaledHeight = -1, int scaledWidth = -1);
 	~CPipelineHelper();
 	
 	// example of how to create a pipeline for display in a window
@@ -48,6 +48,12 @@ public:
 
 private:
 	bool m_pipelineBuilt;
+	bool m_scaleVideo;
+	int m_scaledWidth;
+	int m_scaledHeight;
 	GstElement *m_pipeline;
 	GstElement *m_source;
+	GstElement *m_videoScaler;
+	GstElement *m_videoScalerCaps;
+	bool build_videoscaler();
 };
