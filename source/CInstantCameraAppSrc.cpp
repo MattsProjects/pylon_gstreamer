@@ -36,7 +36,7 @@
 	| |freerun|                                                               |                          |    |         |    |              |
 	| <--------                                                               |                          |    |         |    |              |
 	+-------------------------------------------------------------------------+--------------------------+    +---------+    +--------------+
-	|<-------------------------------------- CInstantCameraAppSrc ----------------------------------->|    |<----- CPipelineHelper ----->|
+	|<-------------------------------------- CInstantCameraAppSrc -------------------------------------->|    |<----- CPipelineHelper ----->|
 	|_InitCamera()
 	|_StartCamera()
 	|_StopCamera()
@@ -140,15 +140,16 @@ bool CInstantCameraAppSrc::InitCamera(string serialnumber, int width, int height
 		//if (GetDeviceInfo().GetDeviceClass() == "BaslerUsb")
 		//	GenApi::CBooleanPtr(GetTLNodeMap().GetNode("MigrationModeEnable"))->SetValue(true);
 
-		// setup some settings common to most cameras (it's always best to check if a feature is available before setting it)
-		if (m_isTriggered == false)
+		
+		if (m_width == -1)
 		{
-			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
-				GenApi::CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
-			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
-				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(m_frameRate); // this is called "AcquisitionFrameRate" (not abs) in usb cameras. Migration mode lets us use the old name though.
-			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRate")))
-				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(m_frameRate); // BCON and USB use SFNC3 names.
+			if (IsAvailable(GetNodeMap().GetNode("Width")))
+				m_width = GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->GetMax();
+		}
+		if (m_height == -1)
+		{
+			if (IsAvailable(GetNodeMap().GetNode("Height")))
+				m_height = GenApi::CIntegerPtr(GetNodeMap().GetNode("Height"))->GetMax();
 		}
 
 		if (IsAvailable(GetNodeMap().GetNode("Width")))
@@ -241,6 +242,22 @@ bool CInstantCameraAppSrc::InitCamera(string serialnumber, int width, int height
 		// We're going to use GStreamer's RGB format in pipelines, so we may need to use Pylon to convert the camera's image to RGB (depending on the camera used)
 		EPixelType pixelType = Pylon::EPixelType::PixelType_RGB8packed;
 		m_FormatConverter.OutputPixelFormat.SetValue(pixelType);
+
+		// setup some settings common to most cameras (it's always best to check if a feature is available before setting it)
+		if (m_isTriggered == false)
+		{
+			if (m_frameRate == -1)
+			{
+				m_frameRate = this->GetFrameRate();
+			}
+
+			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
+				GenApi::CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
+			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
+				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(m_frameRate); // this is called "AcquisitionFrameRate" (not abs) in usb cameras. Migration mode lets us use the old name though.
+			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(m_frameRate); // BCON and USB use SFNC3 names.
+		}
 
 		// Initialize the Pylon image to a blank image on the off chance that the very first m_Image can't be supplied by the instant camera (ie: missing trigger signal)
 		m_Image.Reset(pixelType, m_width, m_height);
