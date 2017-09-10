@@ -420,6 +420,11 @@ bool CInstantCameraAppSrc::StopCamera()
 {
 	try
 	{
+		// send an EOS event to effectively stop need-data signals. Otherwise the clearing of grab engine buffers by stopgrabbing()
+		// may occur during a subsequent retrieve_image(), which could lead to a null grabresult pointer ("no grab result data referenced error")		
+		cout << "Sending EOS event..." << endl;
+		gst_element_send_event(m_source, gst_event_new_eos());
+
 		cout << "Stopping Camera image acquistion and Pylon image grabbing..." << endl;
 		StopGrabbing();
 
