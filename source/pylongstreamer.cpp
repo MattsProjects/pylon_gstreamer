@@ -129,9 +129,9 @@ void IntHandler(int dummy)
 {
 	try
 	{
-		//! Emit the EOS signal which tells all the elements to shut down properly:
+		// send End Of Stream event to all pipeline elements
 		cout << endl;
-		cout << "Sending EOS signal to shutdown pipeline cleanly..." << endl;
+		cout << "Sending EOS event to pipeline..." << endl;
 		gst_element_send_event(pipeline, gst_event_new_eos());
 		sigint_restore();
 		return;
@@ -449,15 +449,17 @@ gint main(gint argc, gchar *argv[])
 		cout << "Starting pipeline..." << endl;
 		gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
-		// run the main loop. When Ctrl+C is pressed, an EOS signal
+		// run the main loop. When Ctrl+C is pressed, an EOS event will be sent
 		// which will shutdown the pipeline in intHandler(), which will in turn quit the main loop.
 		g_main_loop_run(loop);
 
 		// clean up
+		cout << "Stopping pipeline..." << endl;
+		gst_element_set_state(pipeline, GST_STATE_NULL);
+
 		camera.StopCamera();
 		camera.CloseCamera();
-
-		gst_element_set_state(pipeline, GST_STATE_NULL);
+		
 		gst_object_unref(GST_OBJECT(pipeline));
 		g_main_loop_unref(loop);
 
