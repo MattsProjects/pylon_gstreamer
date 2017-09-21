@@ -35,11 +35,6 @@ CPipelineHelper::CPipelineHelper(GstElement *pipeline, GstElement *source, int s
 	m_source = source;
 	m_scaledWidth = scaledWidth;
 	m_scaledHeight = scaledHeight;
-
-	if (m_scaledWidth != -1 && m_scaledHeight != -1)
-	{
-		CPipelineHelper::build_videoscaler();
-	}
 }
 
 CPipelineHelper::~CPipelineHelper()
@@ -50,19 +45,37 @@ bool CPipelineHelper::build_videoscaler()
 {
 	try
 	{
+		// we will always add the scaler element to the pipeline.
+		// If there is no caps filter after the element dictating the new size, it simply won't do anything.
 		m_videoScaler = gst_element_factory_make("videoscale", "videoscale");
 		m_videoScalerCaps = gst_element_factory_make("capsfilter", "videocaps");
-		GstCaps *caps = gst_caps_new_simple("video/x-raw",
-			"width", G_TYPE_INT, m_scaledWidth,
-			"height", G_TYPE_INT, m_scaledHeight,
-			NULL);
 
-		g_object_set(G_OBJECT(m_videoScalerCaps), "caps", caps, NULL);
-		gst_caps_unref(caps);
+		if (m_scaledWidth == -1 || m_scaledHeight == -1)
+		{
+			// will not apply caps after the videoscaler element, so it will not do any scaling.
+			return true;
+		}
+		else if (m_scaledWidth < 2 || m_scaledHeight < 2)
+		{
+			// rescaling to widths less that 2 causes 'failed to activate buffer pool' in converter element
+			cerr << "Scaling width and height must be greater than 2x2!" << endl;
+			return false;
+		}
+		else
+		{
+			// configure the capsfilter after the videoscaler element, so it will apply scaling.
+			GstCaps *caps = gst_caps_new_simple("video/x-raw",
+				"width", G_TYPE_INT, m_scaledWidth,
+				"height", G_TYPE_INT, m_scaledHeight,
+				NULL);
+				
+			g_object_set(G_OBJECT(m_videoScalerCaps), "caps", caps, NULL);
 
-		m_scaleVideo = true;
+			gst_caps_unref(caps);
 		
-		return true;
+			return true;
+		}
+		
 	}
 	catch (std::exception &e)
 	{
@@ -83,6 +96,10 @@ bool CPipelineHelper::build_pipeline_display()
 			return false;
 		}
 		
+		// build the videoscaler
+		if (build_videoscaler() == false)
+			return false;
+
 		GstElement *convert;
 		GstElement *sink;
 
@@ -95,16 +112,10 @@ bool CPipelineHelper::build_pipeline_display()
 		if (!sink){ cout << "Could not make sink" << endl; return false; }
 
 		// add and link the pipeline elements
-		if (m_scaleVideo == true)
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
-			gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
-		}
-		else
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, convert, sink, NULL);
-			gst_element_link_many(m_source, convert, sink, NULL);
-		}		
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
+		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
+		
+		
 		cout << "Pipeline Made." << endl;
 		
 		m_pipelineBuilt = true;
@@ -129,6 +140,9 @@ bool CPipelineHelper::build_pipeline_framebuffer(string fbDevice)
 			return false;
 		}
 		
+		if (build_videoscaler() == false)
+			return false;
+
 		GstElement *convert;
 		GstElement *sink;
 
@@ -144,16 +158,8 @@ bool CPipelineHelper::build_pipeline_framebuffer(string fbDevice)
 		g_object_set(G_OBJECT(sink), "device", fbDevice.c_str(), NULL);
 
 		// add and link the pipeline elements
-		if (m_scaleVideo == true)
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
-			gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
-		}
-		else
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, convert, sink, NULL);
-			gst_element_link_many(m_source, convert, sink, NULL);
-		}		
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
+		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, sink, NULL);
 		
 		cout << "Pipeline Made." << endl;
 
@@ -178,6 +184,9 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 			cout << "Cancelling -h264stream. Another pipeline has already been built." << endl;
 			return false;
 		}
+
+		if (build_videoscaler() == false)
+			return false;
 		
 		GstElement *convert;
 		GstElement *encoder;
@@ -243,16 +252,8 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 		g_object_set(G_OBJECT(sink), "host", ipAddress.c_str(), "port", port, "sync", FALSE, "async", FALSE, NULL);
 
 		// add and link the pipeline elements
-		if (m_scaleVideo == true)
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
-			gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
-		}
-		else
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, convert, encoder, filter2, rtp264, sink, NULL);
-			gst_element_link_many(m_source, convert, encoder, filter2, rtp264, sink, NULL);
-		}
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
+		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
 		
 		cout << "Pipeline Made." << endl;
 
@@ -278,6 +279,9 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 			cout << "Cancelling -h264file. Another pipeline has already been built." << endl;
 			return false;
 		}
+
+		if (build_videoscaler() == false)
+			return false;
 		
 		GstElement *convert;
 		GstElement *encoder;
@@ -334,16 +338,8 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName, int numFramesToRe
 		cout << "Source will output " << numFramesToRecord << " frames before sending EOS..." << endl;
 
 		// add and link the pipeline elements
-		if (m_scaleVideo == true)
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, muxer, sink, NULL);
-			gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, muxer, sink, NULL);
-		}
-		else
-		{
-			gst_bin_add_many(GST_BIN(m_pipeline), m_source, convert, encoder, muxer, sink, NULL);
-			gst_element_link_many(m_source, convert, encoder, muxer, sink, NULL);
-		}	
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, muxer, sink, NULL);
+		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, muxer, sink, NULL);
 		
 		cout << "Pipeline Made." << endl;
 		
