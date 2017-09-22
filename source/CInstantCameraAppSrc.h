@@ -33,30 +33,43 @@ using namespace std;
 class CInstantCameraAppSrc : public CInstantCamera
 {
 public:
-	CInstantCameraAppSrc();
+	CInstantCameraAppSrc(string serialnumber = "");
 	~CInstantCameraAppSrc();
 
 	int GetWidth();
 	int GetHeight();
-	bool InitCamera(string serialnumber, int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger);
+	bool InitCamera(
+		int width,
+		int height,
+		int framesPerSecond,
+		bool useOnDemand,
+		bool useTrigger,
+		int scaledWidth = -1,
+		int scaledHeight = -1,
+		int rotation = -1);
 	bool StartCamera();
 	bool StopCamera();
 	bool CloseCamera();
 	double GetFrameRate();
-	GstElement* GetAppSrc();	
+	GstElement* GetSource();	
 	
 private:
 	int m_width;
 	int m_height;
 	int m_frameRate;
+	int m_scaledWidth;
+	int m_scaledHeight;
+	int m_rotation;
 	bool m_isInitialized;
 	bool m_isColor;
 	bool m_isOnDemand;
 	bool m_isTriggered;
+	bool m_isOpen;
 	string m_serialNumber;
 	Pylon::CPylonImage m_Image;
 	Pylon::CImageFormatConverter m_FormatConverter;
-	GstElement* m_source;
+	GstElement* m_appsrc;
+	GstElement* m_sourceBin;
 	GstBuffer* m_gstBuffer;
 	bool retrieve_image();
 	static void cb_need_data(GstElement *appsrc, guint unused_size, gpointer user_data);
