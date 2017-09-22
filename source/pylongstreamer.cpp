@@ -55,6 +55,8 @@ https://gstreamer.freedesktop.org/
 
 using namespace std;
 
+int exitCode = 0;
+
 // ******* variables, call-backs, etc. for use with gstreamer ********
 // The main event loop manages all the available sources of events for GLib and GTK+ applications
 GMainLoop *loop;
@@ -153,6 +155,7 @@ int frameRate = -1;
 int numImagesToRecord = -1; // capture indefinitley unless otherwise specified.
 int scaledWidth = -1; // do not scale by default
 int scaledHeight = -1;
+int rotation = -1; // do not rotate or flip image by default
 bool h264stream = false;
 bool h264file = false;
 bool display = false;
@@ -175,12 +178,12 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << " Demo of InstantCameraAppSrc class (and PipelineHelper)." << endl;
 			cout << endl;
 			cout << "Concept Overview:" << endl;
-			cout << " <----- InstantCameraAppSrc ------>    <------------ PipelineHelper ----------->" << endl;
-			cout << " +--------------------------------+    +---------+    +---------+    +---------+" << endl;
-			cout << " | source                         |    | element |    | element |    | sink    |" << endl;
-			cout << " | (camera + driver + GstAppSrc)  |    |         |    |         |    |         |" << endl;
-			cout << " |                               src--sink      src--sink      src--sink       |" << endl;
-			cout << " +--------------------------------+    +---------+    +---------+    +---------+" << endl;
+			cout << " <--------------- InstantCameraAppSrc -------------->    <------------ PipelineHelper ----------->" << endl;
+			cout << " +--------------------------------------------------+    +---------+    +---------+    +---------+" << endl;
+			cout << " | source                                           |    | element |    | element |    | sink    |" << endl;
+			cout << " | (camera + driver + GstAppSrc + rescale + rotate) |    |         |    |         |    |         |" << endl;
+			cout << " |                                                 src--sink      src--sink      src--sink       |" << endl;
+			cout << " +--------------------------------------------------+    +---------+    +---------+    +---------+" << endl;
 			cout << endl;
 			cout << "Usage:" << endl;
 			cout << " pylongstreamer -options -pipeline" << endl;
@@ -188,7 +191,8 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << "Options: " << endl;
 			cout << " -camera <serialnumber> (Use a specific camera. If not specified, will use first camera found.)" << endl;
 			cout << " -aoi <width> <height> (Camera's Area Of Interest. If not specified, will use camera's maximum.)" << endl;
-			cout << " -rescale <width> <height> (Will rescale the image for the pipeline if desired.)" << endl;			
+			cout << " -rescale <width> <height> (Will rescale the image for the pipeline if desired.)" << endl;
+			cout << " -rotate <degrees clockwise> (Will rotate 90, 180, 270 degrees clockwise)" << endl;
 			cout << " -framerate <fps> (If not specified, will use camera's maximum under current settings.)" << endl;
 			cout << " -ondemand (Will software trigger the camera when needed instead of using continuous free run. May lower CPU load.)" << endl;
 			cout << " -usetrigger (Will configure the camera to expect a hardware trigger on IO Line 1. eg: TTL signal.)" << endl;
@@ -256,6 +260,16 @@ int ParseCommandLine(gint argc, gchar *argv[])
 				else
 				{
 					cout << "Scaling height not specified. eg: -scaled 320 240" << endl;
+					return -1;
+				}
+			}
+			else if (string(argv[i]) == "-rotate")
+			{
+				if (argv[i + 1] != NULL)
+					rotation = atoi(argv[i + 1]);
+				else
+				{
+					cout << "Rotation not specified. eg: -rotate 90" << endl;
 					return -1;
 				}
 			}
@@ -361,12 +375,12 @@ int ParseCommandLine(gint argc, gchar *argv[])
 	catch (GenICam::GenericException &e)
 	{
 		cerr << "An exception occured in ParseCommandLine(): " << endl << e.GetDescription() << endl;
-		return false;
+		return -1;
 	}
 	catch (std::exception &e)
 	{
 		cerr << "An exception occurred in ParseCommandLine(): " << endl << e.what() << endl;
-		return false;
+		return -1;
 	}
 }
 
@@ -379,7 +393,10 @@ gint main(gint argc, gchar *argv[])
 	{
 
 		if (ParseCommandLine(argc, argv) == -1)
-			return -1;
+		{
+			exitCode = -1;
+			return exitCode;
+		}
 
 		// signal handler for ctrl+C
 		signal(SIGINT, IntHandler);
@@ -394,17 +411,23 @@ gint main(gint argc, gchar *argv[])
 
 		// The InstantCameraForAppSrc will manage the camera and driver
 		// and provide a source element to the GStreamer pipeline.
-		CInstantCameraAppSrc camera;
+		CInstantCameraAppSrc camera(serialNumber);
+
+		// reset the camera to defaults if you like
+		GenApi::CEnumerationPtr(camera.GetNodeMap().GetNode("UserSetSelector"))->FromString("Default");
+		GenApi::CCommandPtr(camera.GetNodeMap().GetNode("UserSetLoad"))->Execute();
 
 		// Initialize the camera and driver
 		cout << "Initializing camera and driver..." << endl;
-		if (camera.InitCamera(serialNumber, width, height, frameRate, onDemand, useTrigger) == false)
-			return -1;
+		camera.InitCamera(width, height, frameRate, onDemand, useTrigger, scaledWidth, scaledHeight, rotation);		
 
 		cout << "Using Camera             : " << camera.GetDeviceInfo().GetFriendlyName() << endl;
 		cout << "Camera Area Of Interest  : " << camera.GetWidth() << "x" << camera.GetHeight() << endl;
 		cout << "Camera Speed             : " << camera.GetFrameRate() << " fps" << endl;
-		cout << "Images will be scaled to : " << scaledWidth << "x" << scaledHeight << endl;
+		if (scaledWidth != -1 && scaledHeight != -1)
+			cout << "Images will be scaled to : " << scaledWidth << "x" << scaledHeight << endl;
+		if (rotation != -1)
+			cout << "Images will be rotated   : " << rotation << " degrees clockwise" << endl;
 
 		// create a new pipeline to add elements too
 		pipeline = gst_pipeline_new("pipeline");
@@ -415,14 +438,14 @@ gint main(gint argc, gchar *argv[])
 		gst_object_unref(bus);
 
 		// A pipeline needs a source element. The InstantCameraForAppSrc will create, configure, and provide an AppSrc which fits the camera.
-		GstElement *source = camera.GetAppSrc();
+		GstElement *source = camera.GetSource();
 		
 		// Build the rest of the pipeline based on the sample chosen.
 		// The PipelineHelper will manage the configuration of GStreamer pipelines.  
 		// The pipeline helper can be expanded to create several kinds of pipelines
 		// as these can depend heavily on the application and host capabilities.
-		// Rescaling the image is optional.
-		CPipelineHelper myPipelineHelper(pipeline, source, scaledWidth, scaledHeight);
+		// Rescaling the image is optional. In this sample we do rescaling and rotation in the InstantCameraAppSrc.
+		CPipelineHelper myPipelineHelper(pipeline, source);
 
 		bool pipelineBuilt = false;
 
@@ -437,13 +460,16 @@ gint main(gint argc, gchar *argv[])
 
 		if (pipelineBuilt == false)
 		{
-			cout << "Pipeline building failed!" << endl;
-			return -1;
+			exitCode = -1;
+			throw std::exception("Pipeline building failed!");
 		}
 
 		// Start the camera and grab engine.
 		if (camera.StartCamera() == false)
-			return -1;
+		{
+			exitCode = -1;
+			throw std::exception("Could not start camera!");
+		}
 
 		// Start the pipeline.
 		cout << "Starting pipeline..." << endl;
@@ -463,22 +489,24 @@ gint main(gint argc, gchar *argv[])
 		gst_object_unref(GST_OBJECT(pipeline));
 		g_main_loop_unref(loop);
 
-		return 0;
+		exitCode = 0;
 
 	}
 	catch (GenICam::GenericException &e)
 	{
 		cerr << "An exception occured in main(): " << endl << e.GetDescription() << endl;
-		return -1;
+		exitCode = -1;
 
 	}
 	catch (std::exception &e)
 	{
 		cerr << "An exception occurred in main(): " << endl << e.what() << endl;
-		return -1;
+		exitCode = -1;
 	}
-
+	
 	// Comment the following two lines to disable waiting on exit.
 	cerr << endl << "Press Enter to exit." << endl;
 	while (cin.get() != '\n');
+	
+	return exitCode;
 }
