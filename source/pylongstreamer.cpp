@@ -461,14 +461,14 @@ gint main(gint argc, gchar *argv[])
 		if (pipelineBuilt == false)
 		{
 			exitCode = -1;
-			throw std::exception("Pipeline building failed!");
+			throw std::runtime_error("Pipeline building failed!");
 		}
 
 		// Start the camera and grab engine.
 		if (camera.StartCamera() == false)
 		{
 			exitCode = -1;
-			throw std::exception("Could not start camera!");
+			throw std::runtime_error("Could not start camera!");
 		}
 
 		// Start the pipeline.
