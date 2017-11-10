@@ -122,7 +122,7 @@ double CInstantCameraAppSrc::GetFrameRate()
 }
 
 // Open the camera and adjust some settings
-bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger, int scaledWidth, int scaledHeight, int rotation)
+bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond, bool useOnDemand, bool useTrigger, int scaledWidth, int scaledHeight, int rotation, int numFramesToGrab)
 {
 	try
 	{
@@ -142,6 +142,7 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 		m_scaledWidth = scaledWidth;
 		m_scaledHeight = scaledHeight;
 		m_rotation = rotation;
+		m_numFramesToGrab = numFramesToGrab;
 
 		// since Image On Demand uses software trigger, it cannot be used with isTriggered
 		if (m_isOnDemand == true && m_isTriggered == true)
@@ -503,6 +504,7 @@ GstElement* CInstantCameraAppSrc::GetSource()
 			"stream-type", 0, // 0 = GST_APP_STREAM_TYPE_STREAM
 			"format", GST_FORMAT_TIME,
 			"is-live", TRUE,
+			"num-buffers", m_numFramesToGrab,
 			"do-timestamp", TRUE, // required for H264 streaming
 			NULL);
 
@@ -579,6 +581,11 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		binSrc = gst_element_get_static_pad(rotator, "src");
   		gst_element_add_pad (m_sourceBin, gst_ghost_pad_new ("src", binSrc));
   		gst_object_unref (GST_OBJECT (binSrc));
+
+		g_object_set(G_OBJECT(m_sourceBin),
+			"async-handling", TRUE,
+			"message-forward", TRUE,
+			NULL);
 
 		return m_sourceBin;
 	}

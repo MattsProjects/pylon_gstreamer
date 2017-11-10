@@ -44,7 +44,7 @@ public:
 	bool build_pipeline_h264stream(string ipAddress);
 
 	// example of how to create a pipeline for encoding images in h264 format and streaming to local video file
-	bool build_pipeline_h264file(string fileName, int numFramesToRecord);
+	bool build_pipeline_h264file(string fileName);
 
 private:
 	bool m_pipelineBuilt;

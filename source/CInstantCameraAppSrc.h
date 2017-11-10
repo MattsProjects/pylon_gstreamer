@@ -46,7 +46,8 @@ public:
 		bool useTrigger,
 		int scaledWidth = -1,
 		int scaledHeight = -1,
-		int rotation = -1);
+		int rotation = -1,
+		int numFramesToGrab = -1);
 	bool StartCamera();
 	bool StopCamera();
 	bool CloseCamera();
@@ -60,6 +61,7 @@ private:
 	int m_scaledWidth;
 	int m_scaledHeight;
 	int m_rotation;
+	int m_numFramesToGrab;
 	bool m_isInitialized;
 	bool m_isColor;
 	bool m_isOnDemand;
