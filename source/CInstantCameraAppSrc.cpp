@@ -287,16 +287,6 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 		// Initialize the Pylon image to a blank image on the off chance that the very first m_Image can't be supplied by the instant camera (ie: missing trigger signal)
 		m_Image.Reset(pixelType, m_width, m_height);
 
-		// create a gst buffer wrapping the image container's buffer
-		m_gstBuffer = gst_buffer_new_wrapped_full(
-			(GstMemoryFlags)GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS,
-			(gpointer)m_Image.GetBuffer(),
-			m_Image.GetImageSize(),
-			0,
-			m_Image.GetImageSize(),
-			NULL,
-			NULL);
-
 		m_isInitialized = true;
 
 		return true;
@@ -422,6 +412,16 @@ bool CInstantCameraAppSrc::retrieve_image()
 			cout << "Will push last good image instead..." << endl;
 		}
 
+		// create a gst buffer wrapping the image container's buffer
+		m_gstBuffer = gst_buffer_new_wrapped_full(
+			(GstMemoryFlags)GST_MEMORY_FLAG_PHYSICALLY_CONTIGUOUS,
+			(gpointer)m_Image.GetBuffer(),
+			m_Image.GetImageSize(),
+			0,
+			m_Image.GetImageSize(),
+			NULL,
+			NULL);
+		
 		// Push the gst buffer wrapping the image buffer to the source pads of the AppSrc element, where it's picked up by the rest of the pipeline
 		GstFlowReturn ret;
 		g_signal_emit_by_name(m_appsrc, "push-buffer", m_gstBuffer, &ret);
