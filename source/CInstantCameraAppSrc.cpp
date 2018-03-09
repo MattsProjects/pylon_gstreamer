@@ -421,11 +421,7 @@ bool CInstantCameraAppSrc::retrieve_image()
 			m_Image.GetImageSize(),
 			NULL,
 			NULL);
-<<<<<<< HEAD
 
-=======
-		
->>>>>>> 6898823b90b0451beb75dd6fea694e4a1c042efa
 		// Push the gst buffer wrapping the image buffer to the source pads of the AppSrc element, where it's picked up by the rest of the pipeline
 		GstFlowReturn ret;
 		g_signal_emit_by_name(m_appsrc, "push-buffer", m_gstBuffer, &ret);
