@@ -124,6 +124,17 @@ bool CPipelineHelper::build_pipeline_display()
 		g_object_set(G_OBJECT(filter), "caps", filter_caps, NULL);
 		gst_caps_unref(filter_caps);
 
+		// if you are using nvidia tx1/tx2, the built-in video sink that is found by autovideosink does not advertise it needs conversion (it does not support RGB).
+		// so we must use a filter such that the converter knows to convert the image format.
+		// if you are using a video sink that supports RGB, then you do not need to convert to i420 and you can remove this filter and save some cpu load.
+		GstElement *filter;
+		GstCaps *filter_caps;
+		filter = gst_element_factory_make("capsfilter", "filter");
+		filter_caps = gst_caps_new_simple("video/x-raw","format", G_TYPE_STRING, "I420", NULL);
+
+		g_object_set(G_OBJECT(filter), "caps", filter_caps, NULL);
+		gst_caps_unref(filter_caps);
+
 		// add and link the pipeline elements
 		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, filter, sink, NULL);
 		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, filter, sink, NULL);
@@ -353,6 +364,51 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName)
 	catch (std::exception &e)
 	{
 		cerr << "An exception occurred in build_pipeline_h264file(): " << endl << e.what() << endl;
+		return false;
+	}
+}
+
+// example of how to create a pipeline from a string that you would use with gst-launch-1.0
+bool CPipelineHelper::build_pipeline_parsestring(string pipelineString)
+{
+	try
+	{
+		if (m_pipelineBuilt == true)
+		{
+			cout << "Cancelling -parsestring. Another pipeline has already been built." << endl;
+			return false;
+		}
+
+		if (build_videoscaler() == false)
+			return false;
+
+		cout << "Applying this Pipeline to the CInstantCameraAppsc: " << pipelineString << "..." << endl;
+		
+		string strPipeline = "";
+		if (pipelineString.find("gst-launch") != std::string::npos)
+		{
+			std::size_t start = pipelineString.find("!");
+			strPipeline = pipelineString.substr(start);
+		}
+		else
+			strPipeline = pipelineString;
+
+		GstElement *userPipeline;
+		userPipeline = gst_parse_bin_from_description(strPipeline.c_str(), true, NULL);
+
+		// add and link the pipeline elements
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, userPipeline, NULL);
+		gst_element_link_many(m_source, userPipeline, NULL);
+
+		cout << "Pipeline Made." << endl;
+
+		m_pipelineBuilt = true;
+
+		return true;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in build_pipeline_parsestring(): " << endl << e.what() << endl;
 		return false;
 	}
 }

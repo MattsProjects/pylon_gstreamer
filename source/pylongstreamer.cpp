@@ -22,30 +22,53 @@
 	IS OUTSIDE THE SCOPE OF THIS LICENSE.
 	
 
-Usage:
-pylongstreamer -camera <serialnumber> -width <columns> -height <rows> -framerate <fps> -ondemand -usetrigger -<pipeline> <options>
+	PylonGStreamer:
+	Demo of InstantCameraAppSrc class (and PipelineHelper).
 
-Example:
-pylongstreamer -camera 12345678 -width 320 -height 240 -framerate 15 -h264file mymovie.h264
+	Concept Overview:
+	<--------------- InstantCameraAppSrc -------------->    <------------ PipelineHelper ----------->
+	+--------------------------------------------------+    +---------+    +---------+    +---------+
+	| source                                           |    | element |    | element |    | sink    |
+	| (camera + driver + GstAppSrc + rescale + rotate) |    |         |    |         |    |         |
+	|                                                 src--sink      src--sink      src--sink       |
+	+--------------------------------------------------+    +---------+    +---------+    +---------+
 
-Quick-Start Example (use first camera found, display in window, 640x480, 30fps):
-pylongstreamer -display
+	Usage:
+	pylongstreamer -options -pipeline
 
-Note:
--camera: If not used, we will use first detected camera.
--ondemand: Instead of freerunning, camera will be software triggered with each need-data signal. May lower CPU load, but may be less 'real-time'.
--usetrigger: Camera will expect to be hardware triggered by user via IO ports (cannot be used with -ondemand).
--framebuffer <fbdevice> (directs raw image stream to Linux framebuffer, e.g. /dev/fb0). Useful when using additional displays
+	Options:
+	-camera <serialnumber> (Use a specific camera. If not specified, will use first camera found.)
+	-aoi <width> <height> (Camera's Area Of Interest. If not specified, will use camera's maximum.)
+	-rescale <width> <height> (Will rescale the image for the pipeline if desired.)
+	-rotate <degrees clockwise> (Will rotate 90, 180, 270 degrees clockwise)
+	-framerate <fps> (If not specified, will use camera's maximum under current settings.)
+	-ondemand (Will software trigger the camera when needed instead of using continuous free run. May lower CPU load.)
+	-usetrigger (Will configure the camera to expect a hardware trigger on IO Line 1. eg: TTL signal.)
 
-Pipeline Examples (pick one):
--h264stream <ipaddress> (Encodes images as h264 and transmits stream to another PC running a GStreamer receiving pipeline.)
--h264file <filename> <number of images> (Encodes images as h264 and saves stream to local file.)
--display (displays the raw image stream in a window on the local machine.)
--framebuffer <fbdevice> (directs raw image stream to Linux framebuffer, e.g. /dev/fb0)
+	Pipeline Examples (pick one):
+	-h264stream <ipaddress> (Encodes images as h264 and transmits stream to another PC running a GStreamer receiving pipeline.)
+	-h264file <filename> <number of images> (Encodes images as h264 and records stream to local file.)
+	-window (displays the raw image stream in a window on the local machine.)
+	-framebuffer <fbdevice> (directs raw image stream to Linux framebuffer. eg: /dev/fb0)
+	-parse <string> (try your existing gst-launch-1.0 pipeline string. We will replace the original pipeline source with the Basler camera.)
 
-Note:
-Some GStreamer elements (plugins) used in the pipeline examples may not be available on all systems. Consult GStreamer for more information:
-https://gstreamer.freedesktop.org/
+	Examples:
+	pylongstreamer -window
+	pylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -rescale 320 240 -h264file mymovie.h264
+	pylongstreamer -rescale 320 240 -parse "gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! autovideosink"
+
+	Quick-Start Example:
+	pylongstreamer -window
+	
+	NVIDIA TX1/TX2 Note:
+	When using autovideosink for display, the system-preferred built-in videosink plugin does advertise the formats it supports. So the image must be converted manually.
+	For an example of how to do this, see CPipelineHelper::build_pipeline_display(). 
+	If you are using pylongstreamer with the -parse argument in order to use your own pipeline, add a caps filter after the normal videoconvert and before autovideosink:
+	./pylongstreamer -parse "gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! video/x-raw,format=I420 ! autovideosink"
+
+	Note:
+	Some GStreamer elements (plugins) used in the pipeline examples may not be available on all systems. Consult GStreamer for more information:
+	https://gstreamer.freedesktop.org/
 */
 
 
@@ -160,12 +183,14 @@ bool h264stream = false;
 bool h264file = false;
 bool display = false;
 bool framebuffer = false;
+bool parsestring = false;
 bool onDemand = false;
 bool useTrigger = false;
 string serialNumber = "";
 string ipaddress = "";
 string filename = "";
 string fbdev = "";
+string pipelineString = "";
 
 int ParseCommandLine(gint argc, gchar *argv[])
 {
@@ -202,12 +227,23 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << " -h264file <filename> <number of images> (Encodes images as h264 and records stream to local file.)" << endl;
 			cout << " -window (displays the raw image stream in a window on the local machine.)" << endl;
 			cout << " -framebuffer <fbdevice> (directs raw image stream to Linux framebuffer. eg: /dev/fb0)" << endl;
+			cout << " -parse <string> (try your existing gst-launch-1.0 pipeline string. We will replace the original pipeline source with the Basler camera if needed.)" << endl;
 			cout << endl;
-			cout << "Example: " << endl;
+			cout << "Examples: " << endl;
+			cout << " pylongstreamer -framebuffer /dev/fb0" << endl;
+			cout << " pylongstreamer -rescale 640 480 -h264stream 172.17.1.199" << endl;
 			cout << " pylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -rescale 320 240 -h264file mymovie.h264" << endl;
+			cout << " pylongstreamer -rescale 320 240 -parse \"gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! autovideosink\"" << endl;
+			cout << " pylongstreamer -rescale 320 240 -parse \"videoflip method=vertical-flip ! videoconvert ! autovideosink\"" << endl;
 			cout << endl;
-			cout << "Quick-Start Example:" << endl;
+			cout << "Quick-Start Example to display stream:" << endl;
 			cout << " pylongstreamer -window" << endl;
+			cout << endl;
+			cout << "NVIDIA TX1/TX2 Note:" << endl;
+			cout << "When using autovideosink for display, the system-preferred built-in videosink plugin does advertise the formats it supports. So the image must be converted manually." << endl;
+			cout << "For an example of how to do this, see CPipelineHelper::build_pipeline_display()." << endl;
+			cout << "If you are using pylongstreamer with the -parse argument in order to use your own pipeline, add a caps filter after the normal videoconvert and before autovideosink:" << endl;
+			cout << "./pylongstreamer -parse \"gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! video/x-raw,format=I420 ! autovideosink\"" << endl;
 			cout << endl;
 			cout << "Note:" << endl;
 			cout << " Some GStreamer elements (plugins) used in the pipeline examples may not be available on all systems. Consult GStreamer for more information:" << endl;
@@ -335,6 +371,17 @@ int ParseCommandLine(gint argc, gchar *argv[])
 					return -1;
 				}
 			}
+			else if (string(argv[i]) == "-parse")
+			{
+				parsestring = true;
+				if (argv[i + 1] != NULL)
+					pipelineString = string(argv[i + 1]);
+				else
+				{
+					cout << "pipeline string not specified. Use one of these format with quotes: \"gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! autovideosink\" or \"videoflip method=vertical-flip ! videoconvert ! autovideosink\"" << endl;
+					return -1;
+				}
+			}
 			// deprecated
 			else if (string(argv[i]) == "-display")
 			{
@@ -364,7 +411,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			}			
 		}
 
-		if (display == false && framebuffer == false && h264file == false && h264stream == false)
+		if (display == false && framebuffer == false && h264file == false && h264stream == false && parsestring == false)
 		{
 			cout << "No pipeline specified." << endl;
 			return -1;
@@ -457,6 +504,8 @@ gint main(gint argc, gchar *argv[])
 			pipelineBuilt = myPipelineHelper.build_pipeline_h264file(filename.c_str());
 		else if (framebuffer == true)
 			pipelineBuilt = myPipelineHelper.build_pipeline_framebuffer(fbdev.c_str());
+		else if (parsestring == true)
+			pipelineBuilt = myPipelineHelper.build_pipeline_parsestring(pipelineString.c_str());
 
 		if (pipelineBuilt == false)
 		{
@@ -470,7 +519,7 @@ gint main(gint argc, gchar *argv[])
 			exitCode = -1;
 			throw std::runtime_error("Could not start camera!");
 		}
-
+		
 		// Start the pipeline.
 		cout << "Starting pipeline..." << endl;
 		gst_element_set_state(pipeline, GST_STATE_PLAYING);
