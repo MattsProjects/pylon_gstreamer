@@ -388,7 +388,7 @@ bool CInstantCameraAppSrc::retrieve_image()
 
 		// Retrieve a Grab Result from the Grab Engine's Output Queue. If nothing comes to the output queue in 5 seconds, throw a timeout exception.
 		RetrieveResult(5000, ptrGrabResult, Pylon::ETimeoutHandling::TimeoutHandling_ThrowException);
-
+	
 		// if the Grab Result indicates success, then we have a good image within the result.
 		if (ptrGrabResult->GrabSucceeded())
 		{
@@ -403,7 +403,6 @@ bool CInstantCameraAppSrc::retrieve_image()
 			{
 				m_Image.CopyImage(ptrGrabResult);
 			}
-
 		}
 		else
 		{
@@ -497,8 +496,11 @@ GstElement* CInstantCameraAppSrc::GetSource()
 	try
 	{
 		// create an appsrc element
-		m_appsrc = gst_element_factory_make("appsrc", "source");
-
+		// Give this element a unique name by adding the camera's serial number, so that mutiple cameras can be used in the same pipeline.
+		string appsrcName = "source";
+		appsrcName.append(this->GetDeviceInfo().GetSerialNumber());
+		m_appsrc = gst_element_factory_make("appsrc", appsrcName.c_str());
+		
 		// setup the appsrc properties
 		g_object_set(G_OBJECT(m_appsrc),
 			"stream-type", 0, // 0 = GST_APP_STREAM_TYPE_STREAM
@@ -572,7 +574,11 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		g_object_set(G_OBJECT(rotator), "method", m_rotation, NULL);
 
 		// combine the appsrc, rescaler, and rotator elements into a single binned element
-		m_sourceBin = gst_bin_new ("sourcebin");
+		// Give this "sourceBin" a unique name by adding the camera serial number, so that multiple cameras can be placed in the same pipeline.
+		string sourceBinName = "sourcebin";
+		sourceBinName.append(this->GetDeviceInfo().GetSerialNumber());
+		m_sourceBin = gst_bin_new (sourceBinName.c_str());
+	
 		gst_bin_add_many(GST_BIN(m_sourceBin), m_appsrc, rescaler, rescalerCaps, rotator, NULL);
 		gst_element_link_many(m_appsrc, rescaler, rescalerCaps, rotator, NULL);
 
