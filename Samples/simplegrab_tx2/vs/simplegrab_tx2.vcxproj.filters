@@ -5,26 +5,31 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="Docs">
+      <UniqueIdentifier>{bbcc4f0b-973b-48ba-a5aa-5cd8777082c1}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{41386959-fb3c-4e4e-84a8-08aceea5d5f1}</UniqueIdentifier>
+      <UniqueIdentifier>{b2c6bf18-0244-41a6-afbf-47800ec9b69e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\source\CPipelineHelper.cpp">
+    <None Include="..\pylon License.rtf">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="..\README.txt">
+      <Filter>Docs</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\simplegrab_tx2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\source\pylongstreamer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\source\CInstantCameraAppSrc.cpp">
+    <ClCompile Include="..\..\..\InstantCameraAppSrc\CInstantCameraAppSrc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\source\CPipelineHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\source\CInstantCameraAppSrc.h">
+    <ClInclude Include="..\..\..\InstantCameraAppSrc\CInstantCameraAppSrc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

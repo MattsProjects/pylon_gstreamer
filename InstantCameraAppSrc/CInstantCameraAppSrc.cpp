@@ -1,7 +1,7 @@
 /*  CInstantCameraAppSrc.cpp: Definition file for CInstantCameraAppSrc Class.
     This will extend the Basler Pylon::CInstantCamera Class to make it more convinient to use with GstAppSrc.
 
-	Copyright 2017 Matthew Breit <matt.breit@gmail.com>
+	Copyright 2017, 2018 Matthew Breit <matt.breit@gmail.com>
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@
 
 /*
 	A Typical Image Streaming Pipeline would look as follows:
-        |<--------------- Camera Acquisition & Pylon Grabbing ------------------->|<---------------------------------------- GStreamer Pipeline ------------------------->|
-	|<------------------------------------------------------------- CInstantCameraAppSrc --------------------------------------->|    |<------ CPipelineHelper ------>|
-        +-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
-	|                                                       GetGstAppSrc()---------> sourceBin element                           |    | element  |    | sink element  |
-	|                                                                         |                                                  |    |          |    |               |
+    |<--------------- Camera Acquisition & Pylon Grabbing ------------------->|<---------------------------------------- GStreamer Pipeline ------------------------->|
+	|<------------------------------------------------------------- CInstantCameraAppSrc --------------------------------------->|    
+    +-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
+	|                                                       GetGstAppSrc()---------> sourceBin element                           |    |  other   |    | sink element  |
+	|                                                                         |                                                  |    | elements |    |               |
 	|                                    RetrieveImage()<---cb_need_data()<---------"need-data" signal                           |    |          |    |               |
 	|            ------------------> --> 1. RetrieveResult()                  |                                                  |    |          |    |               |
 	|            | LatestImageOnly |     2. Convert to RGB if color           |                                                  |    |          |    |               |
@@ -36,11 +36,11 @@
 	| |freerun|                                                               | |             | |            | |            |    |    |          |    |               |
 	| <--------                                                               | +-------------+ +------------+ +------------+    |    |          |    |               |
 	+-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
-	CInstantCameraAppSrc::                                                                                                            CPipelineHelper::
-         InitCamera()                                                                                                                      build_build_pipeline_display()
-	 StartCamera()                                                                                                                     build_pipeline_framebuffer()
-	 StopCamera()                                                                                                                      build_pipeline_h264stream()
-	 CloseCamera()                                                                                                                     build_pipeline_h264file()  
+	CInstantCameraAppSrc::                                                                                                            
+     InitCamera()                                                                                                                      
+	 StartCamera()                                                                                                                     
+	 StopCamera()                                                                                                                     
+	 CloseCamera()                                                                                                                      
 	 GetWidth()
 	 GetHeight()
 	 GetFrameRate()

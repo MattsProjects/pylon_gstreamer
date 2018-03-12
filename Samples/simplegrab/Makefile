@@ -1,10 +1,9 @@
-# Makefile for pylongstreamer
+# Makefile for simplegrab
 .PHONY: all clean
 
 # The program to build
-NAME       := pylongstreamer
-CLASS1	   := CInstantCameraAppSrc
-CLASS2     := CPipelineHelper
+NAME       := simplegrab
+CLASS1	   := ../../InstantCameraAppSrc/CInstantCameraAppSrc
 
 # Installation directories for pylon
 PYLON_ROOT ?= /opt/pylon5
@@ -20,10 +19,10 @@ LDLIBS     := $(shell pkg-config --libs gstreamer-1.0 gstreamer-app-1.0) $(shell
 # Rules for building
 all: $(NAME)
 
-$(NAME): $(NAME).o $(CLASS1).o $(CLASS2).o
+$(NAME): $(NAME).o $(CLASS1).o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-$(NAME).o: $(NAME).cpp $(CLASS1).cpp $(CLASS2).cpp
+$(NAME).o: $(NAME).cpp $(CLASS1).cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 
 clean:

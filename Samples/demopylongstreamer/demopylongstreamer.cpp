@@ -1,4 +1,4 @@
-/*  pylongstreamer.cpp: Sample application using CInstantCameraAppSrc class.
+/*  demopylongstreamer.cpp: Sample application using CInstantCameraAppSrc class.
     This will stream image data from a Basler camera to a GStreamer pipeline.
 	CPipelineHelper is included to help create sample pipelines
 	CInstantCameraAppSrc and CPipelineHelper are intended to be used as modules, so that functionality can be added over time.
@@ -22,7 +22,7 @@
 	IS OUTSIDE THE SCOPE OF THIS LICENSE.
 	
 
-	PylonGStreamer:
+	DemoPylonGStreamer:
 	Demo of InstantCameraAppSrc class (and PipelineHelper).
 
 	Concept Overview:
@@ -34,7 +34,7 @@
 	+--------------------------------------------------+    +---------+    +---------+    +---------+
 
 	Usage:
-	pylongstreamer -options -pipeline
+	demopylongstreamer -options -pipeline
 
 	Options:
 	-camera <serialnumber> (Use a specific camera. If not specified, will use first camera found.)
@@ -53,18 +53,18 @@
 	-parse <string> (try your existing gst-launch-1.0 pipeline string. We will replace the original pipeline source with the Basler camera.)
 
 	Examples:
-	pylongstreamer -window
-	pylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -rescale 320 240 -h264file mymovie.h264
-	pylongstreamer -rescale 320 240 -parse "gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! autovideosink"
+	demopylongstreamer -window
+	demopylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -rescale 320 240 -h264file mymovie.h264
+	demopylongstreamer -rescale 320 240 -parse "gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! autovideosink"
 
 	Quick-Start Example:
-	pylongstreamer -window
+	demopylongstreamer -window
 	
 	NVIDIA TX1/TX2 Note:
 	When using autovideosink for display, the system-preferred built-in videosink plugin does advertise the formats it supports. So the image must be converted manually.
 	For an example of how to do this, see CPipelineHelper::build_pipeline_display(). 
-	If you are using pylongstreamer with the -parse argument in order to use your own pipeline, add a caps filter after the normal videoconvert and before autovideosink:
-	./pylongstreamer -parse "gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! video/x-raw,format=I420 ! autovideosink"
+	If you are using demopylongstreamer with the -parse argument in order to use your own pipeline, add a caps filter after the normal videoconvert and before autovideosink:
+	./demopylongstreamer -parse "gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! video/x-raw,format=I420 ! autovideosink"
 
 	Note:
 	Some GStreamer elements (plugins) used in the pipeline examples may not be available on all systems. Consult GStreamer for more information:
@@ -72,7 +72,7 @@
 */
 
 
-#include "CInstantCameraAppSrc.h"
+#include "../../InstantCameraAppSrc/CInstantCameraAppSrc.h"
 #include "CPipelineHelper.h"
 #include <gst/gst.h>
 
@@ -199,7 +199,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 		if (argc < 2)
 		{
 			cout << endl;
-			cout << "PylonGStreamer: " << endl;
+			cout << "DemoPylonGStreamer: " << endl;
 			cout << " Demo of InstantCameraAppSrc class (and PipelineHelper)." << endl;
 			cout << endl;
 			cout << "Concept Overview:" << endl;
@@ -211,7 +211,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << " +--------------------------------------------------+    +---------+    +---------+    +---------+" << endl;
 			cout << endl;
 			cout << "Usage:" << endl;
-			cout << " pylongstreamer -options -pipeline" << endl;
+			cout << " demopylongstreamer -options -pipeline" << endl;
 			cout << endl;
 			cout << "Options: " << endl;
 			cout << " -camera <serialnumber> (Use a specific camera. If not specified, will use first camera found.)" << endl;
@@ -230,20 +230,20 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << " -parse <string> (try your existing gst-launch-1.0 pipeline string. We will replace the original pipeline source with the Basler camera if needed.)" << endl;
 			cout << endl;
 			cout << "Examples: " << endl;
-			cout << " pylongstreamer -framebuffer /dev/fb0" << endl;
-			cout << " pylongstreamer -rescale 640 480 -h264stream 172.17.1.199" << endl;
-			cout << " pylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -rescale 320 240 -h264file mymovie.h264" << endl;
-			cout << " pylongstreamer -rescale 320 240 -parse \"gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! autovideosink\"" << endl;
-			cout << " pylongstreamer -rescale 320 240 -parse \"videoflip method=vertical-flip ! videoconvert ! autovideosink\"" << endl;
+			cout << " demopylongstreamer -framebuffer /dev/fb0" << endl;
+			cout << " demopylongstreamer -rescale 640 480 -h264stream 172.17.1.199" << endl;
+			cout << " demopylongstreamer -camera 12345678 -aoi 640 480 -framerate 15 -rescale 320 240 -h264file mymovie.h264" << endl;
+			cout << " demopylongstreamer -rescale 320 240 -parse \"gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! autovideosink\"" << endl;
+			cout << " demopylongstreamer -rescale 320 240 -parse \"videoflip method=vertical-flip ! videoconvert ! autovideosink\"" << endl;
 			cout << endl;
 			cout << "Quick-Start Example to display stream:" << endl;
-			cout << " pylongstreamer -window" << endl;
+			cout << " demopylongstreamer -window" << endl;
 			cout << endl;
 			cout << "NVIDIA TX1/TX2 Note:" << endl;
 			cout << "When using autovideosink for display, the system-preferred built-in videosink plugin does advertise the formats it supports. So the image must be converted manually." << endl;
 			cout << "For an example of how to do this, see CPipelineHelper::build_pipeline_display()." << endl;
-			cout << "If you are using pylongstreamer with the -parse argument in order to use your own pipeline, add a caps filter after the normal videoconvert and before autovideosink:" << endl;
-			cout << "./pylongstreamer -parse \"gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! video/x-raw,format=I420 ! autovideosink\"" << endl;
+			cout << "If you are using demopylongstreamer with the -parse argument in order to use your own pipeline, add a caps filter after the normal videoconvert and before autovideosink:" << endl;
+			cout << "./demopylongstreamer -parse \"gst-launch-1.0 videotestsrc ! videoflip method=vertical-flip ! videoconvert ! video/x-raw,format=I420 ! autovideosink\"" << endl;
 			cout << endl;
 			cout << "Note:" << endl;
 			cout << " Some GStreamer elements (plugins) used in the pipeline examples may not be available on all systems. Consult GStreamer for more information:" << endl;
