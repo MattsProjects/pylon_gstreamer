@@ -51,6 +51,7 @@ public:
 	bool StartCamera();
 	bool StopCamera();
 	bool CloseCamera();
+	bool SetFrameRate(double framesPerSecond);
 	double GetFrameRate();
 	GstElement* GetSource();	
 	
@@ -75,4 +76,5 @@ private:
 	GstBuffer* m_gstBuffer;
 	bool retrieve_image();
 	static void cb_need_data(GstElement *appsrc, guint unused_size, gpointer user_data);
+	void CInstantCameraAppSrc::Increment();
 };

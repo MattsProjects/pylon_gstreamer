@@ -1,5 +1,5 @@
 /*  CInstantCameraAppSrc.cpp: Definition file for CInstantCameraAppSrc Class.
-    This will extend the Basler Pylon::CInstantCamera Class to make it more convinient to use with GstAppSrc.
+	This will extend the Basler Pylon::CInstantCamera Class to make it more convinient to use with GstAppSrc.
 
 	Copyright 2017, 2018 Matthew Breit <matt.breit@gmail.com>
 
@@ -7,7 +7,7 @@
 	you may not use this file except in compliance with the License.
 	You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 	Unless required by applicable law or agreed to in writing, software
 	distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,13 +18,13 @@
 	THIS SOFTWARE REQUIRES ADDITIONAL SOFTWARE (IE: LIBRARIES) IN ORDER TO COMPILE
 	INTO BINARY FORM AND TO FUNCTION IN BINARY FORM. ANY SUCH ADDITIONAL SOFTWARE
 	IS OUTSIDE THE SCOPE OF THIS LICENSE.
-*/
+	*/
 
 /*
 	A Typical Image Streaming Pipeline would look as follows:
-    |<--------------- Camera Acquisition & Pylon Grabbing ------------------->|<---------------------------------------- GStreamer Pipeline ------------------------->|
-	|<------------------------------------------------------------- CInstantCameraAppSrc --------------------------------------->|    
-    +-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
+	|<--------------- Camera Acquisition & Pylon Grabbing ------------------->|<---------------------------------------- GStreamer Pipeline ------------------------->|
+	|<------------------------------------------------------------- CInstantCameraAppSrc --------------------------------------->|
+	+-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
 	|                                                       GetGstAppSrc()---------> sourceBin element                           |    |  other   |    | sink element  |
 	|                                                                         |                                                  |    | elements |    |               |
 	|                                    RetrieveImage()<---cb_need_data()<---------"need-data" signal                           |    |          |    |               |
@@ -36,14 +36,14 @@
 	| |freerun|                                                               | |             | |            | |            |    |    |          |    |               |
 	| <--------                                                               | +-------------+ +------------+ +------------+    |    |          |    |               |
 	+-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
-	CInstantCameraAppSrc::                                                                                                            
-     InitCamera()                                                                                                                      
-	 StartCamera()                                                                                                                     
-	 StopCamera()                                                                                                                     
-	 CloseCamera()                                                                                                                      
-	 GetWidth()
-	 GetHeight()
-	 GetFrameRate()
+	CInstantCameraAppSrc::
+	InitCamera()
+	StartCamera()
+	StopCamera()
+	CloseCamera()
+	GetWidth()
+	GetHeight()
+	GetFrameRate()
 
 	1. The camera and grab engine in this case are always freerunning (unless ondemand is used, then it sits idle and sends a trigger when an image is needed)
 	2. LatestImageOnly strategy means the Grab Engine keeps the latest image received ready for retrieval.
@@ -54,7 +54,7 @@
 	7. AppSrc provides the image to the rescaler element, which then pushes it to image rotation element.
 	8. AppSrc, rescaler, and rotator elements are binned together into sourceBin.
 	9. The output of sourceBin (it's src pad) is then the input to the rest of the pipeline
-*/
+	*/
 
 #include "CInstantCameraAppSrc.h"
 
@@ -67,10 +67,10 @@ CInstantCameraAppSrc::CInstantCameraAppSrc(string serialnumber)
 {
 	// initialize Pylon runtime
 	Pylon::PylonInitialize();
-	
+
 	m_serialNumber = serialnumber;
 	m_isOpen = false;
-	
+
 	try
 	{
 		// use the first camera device found. You can also populate a CDeviceInfo object with information like serial number, etc. to choose a specific camera
@@ -116,9 +116,33 @@ int CInstantCameraAppSrc::GetHeight()
 double CInstantCameraAppSrc::GetFrameRate()
 {
 	if (GenApi::IsAvailable(GetNodeMap().GetNode("ResultingFrameRateAbs")))
-	  return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRateAbs"))->GetValue();
+		return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRateAbs"))->GetValue();
 	else
-	  return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRate"))->GetValue(); // BCON and USB use SFNC3 names	
+		return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRate"))->GetValue(); // BCON and USB use SFNC3 names
+}
+bool CInstantCameraAppSrc::SetFrameRate(double framesPerSecond)
+{
+	try
+	{
+		if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
+			CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
+		if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+			CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(framesPerSecond);
+		else
+			CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(framesPerSecond);
+
+		return true;
+	}
+	catch (GenICam::GenericException &e)
+	{
+		cerr << "An exception occured in SetFrameRate(): " << endl << e.GetDescription() << e.GetSourceFileName() << endl;
+		return false;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in SetFrameRate(): " << endl << e.what() << endl;
+		return false;
+	}
 }
 
 // Open the camera and adjust some settings
@@ -150,7 +174,7 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 			cout << "Cannot use both Image-on-Demand and Triggered mode. Using only Triggered Mode." << endl;
 			m_isOnDemand = false;
 		}
-		
+
 		// setup the camera. Here we use the GenICam GenAPI method so we can support multiple interfaces like usb and gige
 		// Note: Get the "Node names" from pylon viewer
 
@@ -165,22 +189,31 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 		//if (GetDeviceInfo().GetDeviceClass() == "BaslerUsb")
 		//	GenApi::CBooleanPtr(GetTLNodeMap().GetNode("MigrationModeEnable"))->SetValue(true);
 
-		
+		// First, reset the cameara to defaults
+		GenApi::CEnumerationPtr(GetNodeMap().GetNode("UserSetSelector"))->FromString("Default");
+		GenApi::CCommandPtr(GetNodeMap().GetNode("UserSetLoad"))->Execute();
+
 		if (m_width == -1)
 		{
 			if (IsAvailable(GetNodeMap().GetNode("Width")))
 				m_width = GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->GetMax();
+		}
+		else
+		{
+			if (IsAvailable(GetNodeMap().GetNode("Width")))
+				GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->SetValue(m_width);
 		}
 		if (m_height == -1)
 		{
 			if (IsAvailable(GetNodeMap().GetNode("Height")))
 				m_height = GenApi::CIntegerPtr(GetNodeMap().GetNode("Height"))->GetMax();
 		}
+		else
+		{
+			if (IsAvailable(GetNodeMap().GetNode("Height")))
+				GenApi::CIntegerPtr(GetNodeMap().GetNode("Height"))->SetValue(m_height);
+		}
 
-		if (IsAvailable(GetNodeMap().GetNode("Width")))
-			GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->SetValue(m_width);
-		if (IsAvailable(GetNodeMap().GetNode("Height")))
-			GenApi::CIntegerPtr(GetNodeMap().GetNode("Height"))->SetValue(m_height);
 		if (IsAvailable(GetNodeMap().GetNode("CenterX")))
 			GenApi::CBooleanPtr(GetNodeMap().GetNode("CenterX"))->SetValue(true);
 		if (IsAvailable(GetNodeMap().GetNode("CenterY")))
@@ -246,7 +279,7 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 		}
 
 
-		// Check the current pixelFormat of the camera to see if the camera should be treated as color or mono 
+		// Check the current pixelFormat of the camera to see if the camera should be treated as color or mono
 		GenApi::CEnumerationPtr PixelFormat = GetNodeMap().GetNode("PixelFormat");
 		if (Pylon::IsMonoImage(Pylon::CPixelTypeMapper::GetPylonPixelTypeByName(PixelFormat->ToString())) == true)
 			m_isColor = false;
@@ -384,11 +417,10 @@ bool CInstantCameraAppSrc::retrieve_image()
 		Pylon::CGrabResultPtr ptrGrabResult;
 
 		if (m_isOnDemand == true)
-			ExecuteSoftwareTrigger();
+			ExecuteSoftwareTrigger(); // TODO: may not work with multiple cameras (grab timeout)? Perhaps something about being in sync, and two CInstantCameras sending the command at exactly the same time?
 
 		// Retrieve a Grab Result from the Grab Engine's Output Queue. If nothing comes to the output queue in 5 seconds, throw a timeout exception.
 		RetrieveResult(5000, ptrGrabResult, Pylon::ETimeoutHandling::TimeoutHandling_ThrowException);
-	
 		// if the Grab Result indicates success, then we have a good image within the result.
 		if (ptrGrabResult->GrabSucceeded())
 		{
@@ -410,6 +442,7 @@ bool CInstantCameraAppSrc::retrieve_image()
 			cout << "Pylon: Grab Result Failed! Error: " << ptrGrabResult->GetErrorDescription() << endl;
 			cout << "Will push last good image instead..." << endl;
 		}
+
 
 		// create a gst buffer wrapping the image container's buffer
 		m_gstBuffer = gst_buffer_new_wrapped_full(
@@ -445,7 +478,7 @@ bool CInstantCameraAppSrc::StopCamera()
 	try
 	{
 		// send an EOS event to effectively stop need-data signals. Otherwise the clearing of grab engine buffers by stopgrabbing()
-		// may occur during a subsequent retrieve_image(), which could lead to a null grabresult pointer ("no grab result data referenced error")		
+		// may occur during a subsequent retrieve_image(), which could lead to a null grabresult pointer ("no grab result data referenced error")
 		cout << "Sending EOS event..." << endl;
 		gst_element_send_event(m_appsrc, gst_event_new_eos());
 
@@ -500,7 +533,7 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		string appsrcName = "source";
 		appsrcName.append(this->GetDeviceInfo().GetSerialNumber());
 		m_appsrc = gst_element_factory_make("appsrc", appsrcName.c_str());
-		
+
 		// setup the appsrc properties
 		g_object_set(G_OBJECT(m_appsrc),
 			"stream-type", 0, // 0 = GST_APP_STREAM_TYPE_STREAM
@@ -514,7 +547,7 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		string format = "RGB";
 		if (m_isColor == false)
 			format = "GRAY8";
-		
+
 		g_object_set(G_OBJECT(m_appsrc), "caps",
 			gst_caps_new_simple("video/x-raw",
 			"format", G_TYPE_STRING, format.c_str(),
@@ -526,13 +559,13 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		g_signal_connect(m_appsrc, "need-data", G_CALLBACK(cb_need_data), this);
 
 		// we can also bin the source with a videoscaler and videoflip element to offer easy rescaling and rotation to the user
-		GstElement *rescaler; 
-		GstElement *rescalerCaps; 
-		GstElement *rotator; 
+		GstElement *rescaler;
+		GstElement *rescalerCaps;
+		GstElement *rotator;
 		rescaler = gst_element_factory_make("videoscale", "rescaler");
 		rescalerCaps = gst_element_factory_make("capsfilter", "rescalerCaps");
 		rotator = gst_element_factory_make("videoflip", "rotator");
-		
+
 		// configure the videoscaler and videoscaler caps elements
 		if (m_scaledWidth == -1 || m_scaledHeight == -1)
 		{
@@ -550,7 +583,7 @@ GstElement* CInstantCameraAppSrc::GetSource()
 				"width", G_TYPE_INT, m_scaledWidth,
 				"height", G_TYPE_INT, m_scaledHeight,
 				NULL);
-				
+
 			g_object_set(G_OBJECT(rescalerCaps), "caps", caps, NULL);
 
 			gst_caps_unref(caps);
@@ -577,16 +610,16 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		// Give this "sourceBin" a unique name by adding the camera serial number, so that multiple cameras can be placed in the same pipeline.
 		string sourceBinName = "sourcebin";
 		sourceBinName.append(this->GetDeviceInfo().GetSerialNumber());
-		m_sourceBin = gst_bin_new (sourceBinName.c_str());
-	
+		m_sourceBin = gst_bin_new(sourceBinName.c_str());
+
 		gst_bin_add_many(GST_BIN(m_sourceBin), m_appsrc, rescaler, rescalerCaps, rotator, NULL);
 		gst_element_link_many(m_appsrc, rescaler, rescalerCaps, rotator, NULL);
 
 		// setup a ghost pad, so the src output of the last element in the bin attaches to the rest of the pipeline.
 		GstPad *binSrc;
 		binSrc = gst_element_get_static_pad(rotator, "src");
-  		gst_element_add_pad (m_sourceBin, gst_ghost_pad_new ("src", binSrc));
-  		gst_object_unref (GST_OBJECT (binSrc));
+		gst_element_add_pad(m_sourceBin, gst_ghost_pad_new("src", binSrc));
+		gst_object_unref(GST_OBJECT(binSrc));
 
 		g_object_set(G_OBJECT(m_sourceBin),
 			"async-handling", TRUE,
