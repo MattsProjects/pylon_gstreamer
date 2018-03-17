@@ -152,8 +152,8 @@ gint main(gint argc, gchar *argv[])
 
 		// The InstantCameraForAppSrc will manage the physical camera and pylon driver
 		// and provide a source element to the GStreamer pipeline.
-		CInstantCameraAppSrc camera1("21949158");
-		CInstantCameraAppSrc camera2("21734321");
+		CInstantCameraAppSrc camera1("21734321");
+		CInstantCameraAppSrc camera2("21708961");
 
 		// rescale both cameras' images to 320x240 for demo purposes
 		int rescaleWidth = 320;
@@ -162,8 +162,8 @@ gint main(gint argc, gchar *argv[])
 		// Initialize the cameras and driver for use with GStreamer
 		// use maximum possible width and height, and maximum possible framerate under current settings.
 		cout << "Initializing camera and driver..." << endl;
-		camera1.InitCamera(-1, -1, -1, false, false, rescaleWidth, rescaleHeight);
-		camera2.InitCamera(-1, -1, -1, false, false, rescaleWidth, rescaleHeight);
+		camera1.InitCamera(-1, -1, -1, true, false, rescaleWidth, rescaleHeight);
+		camera2.InitCamera(-1, -1, -1, true, false, rescaleWidth, rescaleHeight);
 
 		// Apply some additional settings you may like
 		cout << "Applying additional user settings..." << endl;

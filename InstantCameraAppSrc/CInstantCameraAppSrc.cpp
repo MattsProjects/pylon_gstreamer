@@ -417,8 +417,9 @@ bool CInstantCameraAppSrc::retrieve_image()
 		Pylon::CGrabResultPtr ptrGrabResult;
 
 		if (m_isOnDemand == true)
-			ExecuteSoftwareTrigger(); // TODO: may not work with multiple cameras (grab timeout)? Perhaps something about being in sync, and two CInstantCameras sending the command at exactly the same time?
-
+		{
+			ExecuteSoftwareTrigger(); // TODO: Check for bug or broken camera on 21949158. It would "Grab Timeout" when used in the twocameras_compositor sample. Other camera combinations worked just fine.
+		}
 		// Retrieve a Grab Result from the Grab Engine's Output Queue. If nothing comes to the output queue in 5 seconds, throw a timeout exception.
 		RetrieveResult(5000, ptrGrabResult, Pylon::ETimeoutHandling::TimeoutHandling_ThrowException);
 		// if the Grab Result indicates success, then we have a good image within the result.
