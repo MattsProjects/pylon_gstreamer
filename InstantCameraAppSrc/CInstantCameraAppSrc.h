@@ -76,5 +76,4 @@ private:
 	GstBuffer* m_gstBuffer;
 	bool retrieve_image();
 	static void cb_need_data(GstElement *appsrc, guint unused_size, gpointer user_data);
-	void Increment();
 };
