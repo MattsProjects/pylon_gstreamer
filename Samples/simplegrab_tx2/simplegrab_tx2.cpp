@@ -154,8 +154,7 @@ gint main(gint argc, gchar *argv[])
 		
 		// use the GenICam API to access features because it supports any interface (USB, GigE, etc.)
 		// reset the camera to defaults if you like
-		GenApi::CEnumerationPtr(camera.GetNodeMap().GetNode("UserSetSelector"))->FromString("Default");
-		GenApi::CCommandPtr(camera.GetNodeMap().GetNode("UserSetLoad"))->Execute();
+		camera.ResetCamera();
 		// use maximum width and height
 		int width = GenApi::CIntegerPtr(camera.GetNodeMap().GetNode("Width"))->GetMax();
 		int height = GenApi::CIntegerPtr(camera.GetNodeMap().GetNode("Height"))->GetMax();

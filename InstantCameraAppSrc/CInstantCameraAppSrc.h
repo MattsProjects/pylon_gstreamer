@@ -50,7 +50,9 @@ public:
 		int numFramesToGrab = -1);
 	bool StartCamera();
 	bool StopCamera();
+	bool OpenCamera();
 	bool CloseCamera();
+	bool ResetCamera();
 	bool SetFrameRate(double framesPerSecond);
 	double GetFrameRate();
 	GstElement* GetSource();	

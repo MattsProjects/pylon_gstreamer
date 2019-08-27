@@ -461,8 +461,8 @@ gint main(gint argc, gchar *argv[])
 		CInstantCameraAppSrc camera(serialNumber);
 
 		// reset the camera to defaults if you like
-		GenApi::CEnumerationPtr(camera.GetNodeMap().GetNode("UserSetSelector"))->FromString("Default");
-		GenApi::CCommandPtr(camera.GetNodeMap().GetNode("UserSetLoad"))->Execute();
+		cout << "Resetting camera to default settings..." << endl;
+		camera.ResetCamera();
 
 		// Initialize the camera and driver
 		cout << "Initializing camera and driver..." << endl;

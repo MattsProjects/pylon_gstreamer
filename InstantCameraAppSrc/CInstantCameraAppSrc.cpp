@@ -84,7 +84,8 @@ CInstantCameraAppSrc::CInstantCameraAppSrc(string serialnumber)
 		}
 
 		// open the camera to access settings
-		Open();
+		OpenCamera();
+		m_isOpen = true;
 	}
 	catch (GenICam::GenericException &e)
 	{
@@ -105,31 +106,47 @@ CInstantCameraAppSrc::~CInstantCameraAppSrc()
 
 int CInstantCameraAppSrc::GetWidth()
 {
-	return CIntegerPtr(GetNodeMap().GetNode("Width"))->GetValue();
+	if (GenApi::IsReadable(GetNodeMap().GetNode("Width")))
+		return CIntegerPtr(GetNodeMap().GetNode("Width"))->GetValue();
+	else
+		return -1;
 }
 
 int CInstantCameraAppSrc::GetHeight()
 {
-	return CIntegerPtr(GetNodeMap().GetNode("Height"))->GetValue();
+	if (GenApi::IsReadable(GetNodeMap().GetNode("Height")))
+		return CIntegerPtr(GetNodeMap().GetNode("Height"))->GetValue();
+	else
+		return -1;
 }
 
 double CInstantCameraAppSrc::GetFrameRate()
 {
-	if (GenApi::IsAvailable(GetNodeMap().GetNode("ResultingFrameRateAbs")))
+	if (GenApi::IsReadable(GetNodeMap().GetNode("ResultingFrameRateAbs")))
 		return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRateAbs"))->GetValue();
+	else if (GenApi::IsReadable(GetNodeMap().GetNode("ResultingFrameRate")))
+		return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRate"))->GetValue(); // BCON LVDS and USB use SFNC3 names
+	else if (GenApi::IsReadable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+		return CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->GetValue(); // MIPI
 	else
-		return CFloatPtr(GetNodeMap().GetNode("ResultingFrameRate"))->GetValue(); // BCON and USB use SFNC3 names
+		return -1;
+
+	// default
+	//return 0;
 }
+
 bool CInstantCameraAppSrc::SetFrameRate(double framesPerSecond)
 {
 	try
 	{
 		if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
 			CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
-		if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+		else if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
 			CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(framesPerSecond);
-		else
+		else if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
 			CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(framesPerSecond);
+		else
+			return false;
 
 		return true;
 	}
@@ -150,14 +167,7 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 {
 	try
 	{
-		if (IsOpen() == false)
-		{
-			cerr << "Camera not open!" << endl;
-			return false;
-		}
-
 		m_isInitialized = false;
-
 		m_width = width;
 		m_height = height;
 		m_frameRate = framesPerSecond;
@@ -189,52 +199,50 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 		//if (GetDeviceInfo().GetDeviceClass() == "BaslerUsb")
 		//	GenApi::CBooleanPtr(GetTLNodeMap().GetNode("MigrationModeEnable"))->SetValue(true);
 
-		// First, reset the cameara to defaults
-		GenApi::CEnumerationPtr(GetNodeMap().GetNode("UserSetSelector"))->FromString("Default");
-		GenApi::CCommandPtr(GetNodeMap().GetNode("UserSetLoad"))->Execute();
+		OpenCamera();
 
 		if (m_width == -1)
 		{
-			if (IsAvailable(GetNodeMap().GetNode("Width")))
+			if (IsReadable(GetNodeMap().GetNode("Width")))
 				m_width = GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->GetMax();
 		}
 		else
 		{
-			if (IsAvailable(GetNodeMap().GetNode("Width")))
+			if (IsWritable(GetNodeMap().GetNode("Width")))
 				GenApi::CIntegerPtr(GetNodeMap().GetNode("Width"))->SetValue(m_width);
 		}
 		if (m_height == -1)
 		{
-			if (IsAvailable(GetNodeMap().GetNode("Height")))
+			if (IsReadable(GetNodeMap().GetNode("Height")))
 				m_height = GenApi::CIntegerPtr(GetNodeMap().GetNode("Height"))->GetMax();
 		}
 		else
 		{
-			if (IsAvailable(GetNodeMap().GetNode("Height")))
+			if (IsWritable(GetNodeMap().GetNode("Height")))
 				GenApi::CIntegerPtr(GetNodeMap().GetNode("Height"))->SetValue(m_height);
 		}
 
-		if (IsAvailable(GetNodeMap().GetNode("CenterX")))
+		if (IsWritable(GetNodeMap().GetNode("CenterX")))
 			GenApi::CBooleanPtr(GetNodeMap().GetNode("CenterX"))->SetValue(true);
-		if (IsAvailable(GetNodeMap().GetNode("CenterY")))
+		if (IsWritable(GetNodeMap().GetNode("CenterY")))
 			GenApi::CBooleanPtr(GetNodeMap().GetNode("CenterY"))->SetValue(true);
 
 		if (m_isOnDemand == true || m_isTriggered == true)
 		{
-			if (IsAvailable(GetNodeMap().GetNode("TriggerSelector")))
+			if (IsWritable(GetNodeMap().GetNode("TriggerSelector")))
 			{
 				GenApi::CEnumerationPtr ptrTriggerSelector = GetNodeMap().GetNode("TriggerSelector");
-				if (IsAvailable(ptrTriggerSelector->GetEntryByName("AcquisitionStart")))
+				if (IsWritable(ptrTriggerSelector->GetEntryByName("AcquisitionStart")))
 				{
 					ptrTriggerSelector->FromString("AcquisitionStart");
 					GenApi::CEnumerationPtr(GetNodeMap().GetNode("TriggerMode"))->FromString("Off");
 				}
-				if (IsAvailable(ptrTriggerSelector->GetEntryByName("FrameBurstStart"))) // BCON and USB use SFNC3 names
+				if (IsWritable(ptrTriggerSelector->GetEntryByName("FrameBurstStart"))) // BCON and USB use SFNC3 names
 				{
 					ptrTriggerSelector->FromString("FrameBurstStart");
 					GenApi::CEnumerationPtr(GetNodeMap().GetNode("TriggerMode"))->FromString("Off");
 				}
-				if (IsAvailable(ptrTriggerSelector->GetEntryByName("FrameStart")))
+				if (IsWritable(ptrTriggerSelector->GetEntryByName("FrameStart")))
 				{
 					ptrTriggerSelector->FromString("FrameStart");
 					GenApi::CEnumerationPtr(GetNodeMap().GetNode("TriggerMode"))->FromString("On");
@@ -309,11 +317,11 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 				m_frameRate = this->GetFrameRate();
 			}
 
-			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
+			if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
 				GenApi::CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
-			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
+			else if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
 				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(m_frameRate); // this is called "AcquisitionFrameRate" (not abs) in usb cameras. Migration mode lets us use the old name though.
-			if (IsAvailable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+			else if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
 				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(m_frameRate); // BCON and USB use SFNC3 names.
 		}
 
@@ -344,7 +352,7 @@ bool CInstantCameraAppSrc::StartCamera()
 	{
 		if (m_isInitialized == false)
 		{
-			cout << "Camera not initialized. Run OpenCamera() first." << endl;
+			cout << "Camera not initialized. Run InitCamera() first." << endl;
 			return false;
 		}
 
@@ -502,6 +510,26 @@ bool CInstantCameraAppSrc::StopCamera()
 }
 
 // Close the camera and do any other cleanup needed
+bool CInstantCameraAppSrc::OpenCamera()
+{
+	try
+	{
+		Open();
+		return true;
+	}
+	catch (GenICam::GenericException &e)
+	{
+		cerr << "An exception occured in CloseCamera(): " << endl << e.GetDescription() << endl;
+		return false;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in CloseCamera(): " << endl << e.what() << endl;
+		return false;
+	}
+}
+
+// Close the camera and do any other cleanup needed
 bool CInstantCameraAppSrc::CloseCamera()
 {
 	try
@@ -520,6 +548,31 @@ bool CInstantCameraAppSrc::CloseCamera()
 	catch (std::exception &e)
 	{
 		cerr << "An exception occurred in CloseCamera(): " << endl << e.what() << endl;
+		return false;
+	}
+}
+
+// Reset the camera to defaults
+bool CInstantCameraAppSrc::ResetCamera()
+{
+	try
+	{
+		if (GenApi::IsWritable(GetNodeMap().GetNode("UserSetSelector")))
+		{
+			GenApi::CEnumerationPtr(GetNodeMap().GetNode("UserSetSelector"))->FromString("Default");
+			GenApi::CCommandPtr(GetNodeMap().GetNode("UserSetLoad"))->Execute();
+			return false;
+		}
+		return true;
+	}
+	catch (GenICam::GenericException &e)
+	{
+		cerr << "An exception occured in ResetCamera(): " << endl << e.GetDescription() << endl;
+		return false;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in ResetCamera(): " << endl << e.what() << endl;
 		return false;
 	}
 }
