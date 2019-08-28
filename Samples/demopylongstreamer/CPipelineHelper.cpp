@@ -1,7 +1,7 @@
 /*  CPipelineHelper.cpp: Definition file for CPipelineHeader Class.
     Given a GStreamer pipeline and source, this will finish building a pipeline.
 
-	Copyright 2017 Matthew Breit <matt.breit@gmail.com>
+	Copyright 2017-2019 Matthew Breit <matt.breit@gmail.com>
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -219,19 +219,24 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 		convert = gst_element_factory_make("videoconvert", "converter");
 
 		// depending on your platform, you may have to use some alternative encoder here.
-		encoder = gst_element_factory_make("omxh264enc", "omxh264enc");  // omxh264enc works good on Raspberry Pi
+		encoder = gst_element_factory_make("v4l2h264enc", "v4l2h264enc");  // omxh264enc works good on Raspberry Pi
 		if (!encoder)
 		{
-			cout << "Could not make omxh264enc encoder. Trying imxvpuenc_h264..." << endl;
-			encoder = gst_element_factory_make("imxvpuenc_h264", "imxvpuenc_h264"); // for i.MX devices.
+			cout << "Could not make v4l2h264enc encoder. Trying omxh264enc..." << endl;
+			encoder = gst_element_factory_make("omxh264enc", "omxh264enc");  // omxh264enc works good on Raspberry Pi
 			if (!encoder)
 			{
-				cout << "Could not make imxvpuenc_h264 encoder. Trying x264enc..." << endl;
-				encoder = gst_element_factory_make("x264enc", "x264enc"); // for other devices
+				cout << "Could not make omxh264enc encoder. Trying imxvpuenc_h264..." << endl;
+				encoder = gst_element_factory_make("imxvpuenc_h264", "imxvpuenc_h264"); // for i.MX devices.
 				if (!encoder)
 				{
-					cout << "Could not make x264enc encoder." << endl;
-					return false; // give up
+					cout << "Could not make imxvpuenc_h264 encoder. Trying x264enc..." << endl;
+					encoder = gst_element_factory_make("x264enc", "x264enc"); // for other devices
+					if (!encoder)
+					{
+						cout << "Could not make x264enc encoder." << endl;
+						return false; // give up
+					}
 				}
 			}
 		}

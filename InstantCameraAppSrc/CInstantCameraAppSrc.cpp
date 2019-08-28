@@ -1,7 +1,7 @@
 /*  CInstantCameraAppSrc.cpp: Definition file for CInstantCameraAppSrc Class.
 	This will extend the Basler Pylon::CInstantCamera Class to make it more convinient to use with GstAppSrc.
 
-	Copyright 2017, 2018 Matthew Breit <matt.breit@gmail.com>
+	Copyright 2017, 2018, 2019 Matthew Breit <matt.breit@gmail.com>
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -616,9 +616,11 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		GstElement *rescaler;
 		GstElement *rescalerCaps;
 		GstElement *rotator;
+		GstElement *converter;
 		rescaler = gst_element_factory_make("videoscale", "rescaler");
 		rescalerCaps = gst_element_factory_make("capsfilter", "rescalerCaps");
 		rotator = gst_element_factory_make("videoflip", "rotator");
+		converter = gst_element_factory_make("videoconvert", "converter");
 
 		// configure the videoscaler and videoscaler caps elements
 		if (m_scaledWidth == -1 || m_scaledHeight == -1)
@@ -666,8 +668,8 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		sourceBinName.append(this->GetDeviceInfo().GetSerialNumber());
 		m_sourceBin = gst_bin_new(sourceBinName.c_str());
 
-		gst_bin_add_many(GST_BIN(m_sourceBin), m_appsrc, rescaler, rescalerCaps, rotator, NULL);
-		gst_element_link_many(m_appsrc, rescaler, rescalerCaps, rotator, NULL);
+		gst_bin_add_many(GST_BIN(m_sourceBin), m_appsrc, converter, rescaler, rescalerCaps, rotator, NULL);
+		gst_element_link_many(m_appsrc, converter, rescaler, rescalerCaps, rotator, NULL);
 
 		// setup a ghost pad, so the src output of the last element in the bin attaches to the rest of the pipeline.
 		GstPad *binSrc;
