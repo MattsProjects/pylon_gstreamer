@@ -577,6 +577,76 @@ bool CInstantCameraAppSrc::ResetCamera()
 	}
 }
 
+// Mimic the Pylon Viewer's Automatic Image Adjustment toolbar button
+bool CInstantCameraAppSrc::AutoAdjustImage()
+{
+	try
+	{
+		if (GenApi::IsWritable(GetNodeMap().GetNode("ExposureAuto")))
+		{
+			GenApi::CEnumerationPtr(GetNodeMap().GetNode("ExposureAuto"))->FromString("Once");
+		}
+		if (GenApi::IsWritable(GetNodeMap().GetNode("GainAuto")))
+		{
+			GenApi::CEnumerationPtr(GetNodeMap().GetNode("GainAuto"))->FromString("Once");
+		}
+		if (GenApi::IsWritable(GetNodeMap().GetNode("BalanceWhiteAuto")))
+		{
+			GenApi::CEnumerationPtr(GetNodeMap().GetNode("BalanceWhiteAuto"))->FromString("Once");
+		}
+		return true;
+	}
+	catch (GenICam::GenericException &e)
+	{
+		cerr << "An exception occured in AutoAdjustImage(): " << endl << e.GetDescription() << endl;
+		return false;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in AutoAdjustImage(): " << endl << e.what() << endl;
+		return false;
+	}
+}
+
+// Save current settings to camera, with the option to boot the camera with them
+bool CInstantCameraAppSrc::SaveSettingsToCamera(bool BootWithNewSettings)
+{
+	try
+	{
+		// USB cameras sometimes have different names for features than GigE cameras, due to SFNC versions.
+		// They can be made backwards compatible and accessible by the old names by enabling "migration mode"
+		// Just in case some of those features are related to saving settings to the camera, enable migration mode.
+		if (GenApi::IsWritable(GetNodeMap().GetNode("MigrationModeEnable")))
+			GenApi::CBooleanPtr(GetNodeMap().GetNode("MigrationModeEnable"))->SetValue(true);
+
+		// Note: Below we don't check writability of nodes, because we would like to throw an error if things fail to alert the application 
+		
+		// Select UserSet1
+		GenApi::CEnumerationPtr(GetNodeMap().GetNode("UserSetSelector"))->FromString("UserSet1");
+		// Save current settings to UserSet1
+		GenApi::CCommandPtr(GetNodeMap().GetNode("UserSetSave"))->Execute();
+		// Tell the camera to bootup with UserSet1 instead of default settings
+		if (BootWithNewSettings == true)
+			GenApi::CEnumerationPtr(GetNodeMap().GetNode("UserSetDefault"))->FromString("UserSet1");
+		
+		// Turn off migration mode (just good programming practice, if you change something, change it back so we don't risk affecting anything else)
+		if (GenApi::IsWritable(GetNodeMap().GetNode("MigrationModeEnable")))
+			GenApi::CBooleanPtr(GetNodeMap().GetNode("MigrationModeEnable"))->SetValue(false);
+
+		return true;
+	}
+	catch (GenICam::GenericException &e)
+	{
+		cerr << "An exception occured in SaveSettingsToCamera(): " << endl << e.GetDescription() << endl;
+		return false;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in SaveSettingsToCamera(): " << endl << e.what() << endl;
+		return false;
+	}
+}
+
 // we will provide the application a configured gst source element to match the camera.
 GstElement* CInstantCameraAppSrc::GetSource()
 {

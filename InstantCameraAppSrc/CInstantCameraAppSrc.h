@@ -54,6 +54,8 @@ public:
 	bool CloseCamera();
 	bool ResetCamera();
 	bool SetFrameRate(double framesPerSecond);
+	bool AutoAdjustImage();
+	bool SaveSettingsToCamera(bool BootWithNewSettings = false);
 	double GetFrameRate();
 	GstElement* GetSource();	
 	
