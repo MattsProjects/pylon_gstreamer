@@ -696,24 +696,24 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		if (m_scaledWidth == -1 || m_scaledHeight == -1)
 		{
 			// don't do any rescaling
+			m_scaledWidth = this->GetWidth();
+			m_scaledHeight = this->GetHeight();
 		}
 		else if (m_scaledWidth < 2 || m_scaledHeight < 2)
 		{
 			// rescaling to widths less that 2 could cause buffer pool errors
 			cerr << "Scaling width and height must be greater than 2x2! Will not scale image!" << endl;
+			m_scaledWidth = this->GetWidth();
+			m_scaledHeight = this->GetHeight();
 		}
-		else
-		{
-			// configure the capsfilter after the videoscaler element, so it will apply scaling.
-			GstCaps *caps = gst_caps_new_simple("video/x-raw",
-				"width", G_TYPE_INT, m_scaledWidth,
-				"height", G_TYPE_INT, m_scaledHeight,
-				NULL);
 
-			g_object_set(G_OBJECT(rescalerCaps), "caps", caps, NULL);
-
-			gst_caps_unref(caps);
-		}
+		// configure the capsfilter after the videoscaler element, so it will apply scaling.
+		g_object_set(G_OBJECT(rescalerCaps), "caps",
+			gst_caps_new_simple("video/x-raw",
+			"format", G_TYPE_STRING, format.c_str(),
+			"width", G_TYPE_INT, m_scaledWidth,
+			"height", G_TYPE_INT, m_scaledHeight,
+			"framerate", GST_TYPE_FRACTION, (int)this->GetFrameRate(), 1, NULL), NULL);
 
 		// configure the videoflip element for rotation
 		if (m_rotation == -1 || m_rotation == 0)
@@ -731,6 +731,7 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		}
 
 		g_object_set(G_OBJECT(rotator), "method", m_rotation, NULL);
+
 
 		// combine the appsrc, rescaler, and rotator elements into a single binned element
 		// Give this "sourceBin" a unique name by adding the camera serial number, so that multiple cameras can be placed in the same pipeline.
