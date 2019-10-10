@@ -177,22 +177,23 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 		convert = gst_element_factory_make("videoconvert", "converter");
 
 		// depending on your platform, you may have to use some alternative encoder here.
-		encoder = gst_element_factory_make("v4l2h264enc", "v4l2h264enc");  // omxh264enc works good on Raspberry Pi
+		cout << "Trying omxh264enc encoder..." << endl;
+		encoder = gst_element_factory_make("omxh264enc", "omxh264enc");  // omxh264enc works good on Raspberry Pi and Jetson Nano
 		if (!encoder)
 		{
-			cout << "Could not make v4l2h264enc encoder. Trying omxh264enc..." << endl;
-			encoder = gst_element_factory_make("omxh264enc", "omxh264enc");  // omxh264enc works good on Raspberry Pi
+			cout << "Could not make omxh264enc encoder. Trying imxvpuenc_h264..." << endl;
+			encoder = gst_element_factory_make("imxvpuenc_h264", "imxvpuenc_h264"); // for i.MX devices.
 			if (!encoder)
 			{
-				cout << "Could not make omxh264enc encoder. Trying imxvpuenc_h264..." << endl;
-				encoder = gst_element_factory_make("imxvpuenc_h264", "imxvpuenc_h264"); // for i.MX devices.
+				cout << "Could not make imxvpuenc_h264 encoder. Trying v4l2h264enc..." << endl;
+				encoder = gst_element_factory_make("v4l2h264enc", "v4l2h264enc");  // for Snapdragon 820 devices
 				if (!encoder)
 				{
-					cout << "Could not make imxvpuenc_h264 encoder. Trying x264enc..." << endl;
+					cout << "Could not make v4l2h264enc encoder. Trying x264enc..." << endl;
 					encoder = gst_element_factory_make("x264enc", "x264enc"); // for other devices
 					if (!encoder)
 					{
-						cout << "Could not make x264enc encoder." << endl;
+						cout << "Could not make x264enc encoder. Giving up..." << endl;
 						return false; // give up
 					}
 				}
