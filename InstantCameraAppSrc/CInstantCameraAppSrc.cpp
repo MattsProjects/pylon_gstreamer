@@ -687,10 +687,15 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		GstElement *rescalerCaps;
 		GstElement *rotator;
 		GstElement *converter;
+		GstElement *finalConverter;
+		GstElement *finalFilter;
+		GstCaps	   *finalFilter_caps;
 		rescaler = gst_element_factory_make("videoscale", "rescaler");
 		rescalerCaps = gst_element_factory_make("capsfilter", "rescalerCaps");
 		rotator = gst_element_factory_make("videoflip", "rotator");
 		converter = gst_element_factory_make("videoconvert", "converter");
+		finalConverter = gst_element_factory_make("videoconvert", "finalConverter");
+		finalFilter = gst_element_factory_make("capsfilter", "filter");
 
 		// configure the videoscaler and videoscaler caps elements
 		if (m_scaledWidth == -1 || m_scaledHeight == -1)
@@ -731,20 +736,36 @@ GstElement* CInstantCameraAppSrc::GetSource()
 		}
 
 		g_object_set(G_OBJECT(rotator), "method", m_rotation, NULL);
-
-
+		
+		// configure the final filter caps so that we output the common I420 format (if color)
+		if (m_isColor == true)
+		{
+			finalFilter_caps = gst_caps_new_simple("video/x-raw",
+				"format", G_TYPE_STRING, "I420",
+				NULL);
+		}
+		else
+		{
+			finalFilter_caps = gst_caps_new_simple("video/x-raw",
+				"format", G_TYPE_STRING, format.c_str(),
+				NULL);
+		}
+			
+		g_object_set(G_OBJECT(finalFilter), "caps", finalFilter_caps, NULL);
+		gst_caps_unref(finalFilter_caps);
+		
 		// combine the appsrc, rescaler, and rotator elements into a single binned element
 		// Give this "sourceBin" a unique name by adding the camera serial number, so that multiple cameras can be placed in the same pipeline.
 		string sourceBinName = "sourcebin";
 		sourceBinName.append(this->GetDeviceInfo().GetSerialNumber());
 		m_sourceBin = gst_bin_new(sourceBinName.c_str());
 
-		gst_bin_add_many(GST_BIN(m_sourceBin), m_appsrc, converter, rescaler, rescalerCaps, rotator, NULL);
-		gst_element_link_many(m_appsrc, converter, rescaler, rescalerCaps, rotator, NULL);
+		gst_bin_add_many(GST_BIN(m_sourceBin), m_appsrc, converter, rescaler, rescalerCaps, rotator, finalConverter, finalFilter, NULL);
+		gst_element_link_many(m_appsrc, converter, rescaler, rescalerCaps, rotator, finalConverter, finalFilter, NULL);
 
 		// setup a ghost pad, so the src output of the last element in the bin attaches to the rest of the pipeline.
 		GstPad *binSrc;
-		binSrc = gst_element_get_static_pad(rotator, "src");
+		binSrc = gst_element_get_static_pad(finalFilter, "src");
 		gst_element_add_pad(m_sourceBin, gst_ghost_pad_new("src", binSrc));
 		gst_object_unref(GST_OBJECT(binSrc));
 
