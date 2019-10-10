@@ -27,6 +27,20 @@
 
 using namespace std;
 
+// ****************************************************************************
+// For Debugging, the functions below can print the caps of elements
+// These come from GStreamer Documentation.
+// They are defined at the end of this file.
+// example usage:
+// print_pad_capabilities(convert, "src");
+// print_pad_capabilities(encoder, "sink");
+
+static gboolean print_field (GQuark field, const GValue * value, gpointer pfx);
+static void print_caps (const GstCaps * caps, const gchar * pfx);
+static void print_pad_templates_information (GstElementFactory * factory);
+static void print_pad_capabilities (GstElement *element, gchar *pad_name);
+// ****************************************************************************
+
 CPipelineHelper::CPipelineHelper(GstElement *pipeline, GstElement *source, int scaledWidth, int scaledHeight)
 {
 	m_pipelineBuilt = false;
@@ -207,7 +221,7 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 		GstElement *rtp264;
 		GstElement *sink;
 		GstCaps *filter2_caps;
-		int port = 5000;
+		int port = 554;
 
 		cout << "Creating Pipeline for streaming images as h264 video across network to: " << ipAddress << ":" << port << "..." << endl;
 		cout << "Start the receiver PC first with this command: " << endl;
@@ -257,10 +271,16 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 			g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
 		}
 
+		if (encoder->object.name == "omxh264enc")
+		{
+			// 1 = baseline, 2 = main, 3 = high
+			g_object_set(G_OBJECT(encoder), "profile", 8, NULL);
+
+		}		
+
 		// filter2 capabilities
 		filter2_caps = gst_caps_new_simple("video/x-h264",
 			"stream-format", G_TYPE_STRING, "byte-stream",
-			"profile", G_TYPE_STRING, "high", // when streaming to windows and using x264enc, profile default "high-4:4:4" doesn't work. use "high" instead.
 			NULL);
 
 		g_object_set(G_OBJECT(filter2), "caps", filter2_caps, NULL);
@@ -270,9 +290,9 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 		g_object_set(G_OBJECT(sink), "host", ipAddress.c_str(), "port", port, "sync", FALSE, "async", FALSE, NULL);
 
 		// add and link the pipeline elements
-		gst_bin_add_many(GST_BIN(m_pipeline), m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
-		gst_element_link_many(m_source, m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
-		
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source,  m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
+		gst_element_link_many(m_source,  m_videoScaler, m_videoScalerCaps, convert, encoder, filter2, rtp264, sink, NULL);
+
 		cout << "Pipeline Made." << endl;
 
 		m_pipelineBuilt = true;
@@ -406,3 +426,107 @@ bool CPipelineHelper::build_pipeline_parsestring(string pipelineString)
 		return false;
 	}
 }
+
+
+// ****************************************************************************
+// debugging functions
+
+static gboolean print_field (GQuark field, const GValue * value, gpointer pfx) {
+  gchar *str = gst_value_serialize (value);
+
+  g_print ("%s  %15s: %s\n", (gchar *) pfx, g_quark_to_string (field), str);
+  g_free (str);
+  return TRUE;
+}
+
+static void print_caps (const GstCaps * caps, const gchar * pfx) {
+  guint i;
+
+  g_return_if_fail (caps != NULL);
+
+  if (gst_caps_is_any (caps)) {
+    g_print ("%sANY\n", pfx);
+    return;
+  }
+  if (gst_caps_is_empty (caps)) {
+    g_print ("%sEMPTY\n", pfx);
+    return;
+  }
+
+  for (i = 0; i < gst_caps_get_size (caps); i++) {
+    GstStructure *structure = gst_caps_get_structure (caps, i);
+
+    g_print ("%s%s\n", pfx, gst_structure_get_name (structure));
+    gst_structure_foreach (structure, print_field, (gpointer) pfx);
+  }
+}
+
+/* Prints information about a Pad Template, including its Capabilities */
+static void print_pad_templates_information (GstElementFactory * factory) {
+  const GList *pads;
+  GstStaticPadTemplate *padtemplate;
+
+  g_print ("Pad Templates for %s:\n", gst_element_factory_get_longname (factory));
+  if (!gst_element_factory_get_num_pad_templates (factory)) {
+    g_print ("  none\n");
+    return;
+  }
+
+  pads = gst_element_factory_get_static_pad_templates (factory);
+  while (pads) {
+    padtemplate = (GstStaticPadTemplate*)pads->data;
+    pads = g_list_next (pads);
+
+    if (padtemplate->direction == GST_PAD_SRC)
+      g_print ("  SRC template: '%s'\n", padtemplate->name_template);
+    else if (padtemplate->direction == GST_PAD_SINK)
+      g_print ("  SINK template: '%s'\n", padtemplate->name_template);
+    else
+      g_print ("  UNKNOWN!!! template: '%s'\n", padtemplate->name_template);
+
+    if (padtemplate->presence == GST_PAD_ALWAYS)
+      g_print ("    Availability: Always\n");
+    else if (padtemplate->presence == GST_PAD_SOMETIMES)
+      g_print ("    Availability: Sometimes\n");
+    else if (padtemplate->presence == GST_PAD_REQUEST)
+      g_print ("    Availability: On request\n");
+    else
+      g_print ("    Availability: UNKNOWN!!!\n");
+
+    if (padtemplate->static_caps.string) {
+      GstCaps *caps;
+      g_print ("    Capabilities:\n");
+      caps = gst_static_caps_get (&padtemplate->static_caps);
+      print_caps (caps, "      ");
+      gst_caps_unref (caps);
+
+    }
+
+    g_print ("\n");
+  }
+}
+
+/* Shows the CURRENT capabilities of the requested pad in the given element */
+static void print_pad_capabilities (GstElement *element, gchar *pad_name) {
+  GstPad *pad = NULL;
+  GstCaps *caps = NULL;
+
+  /* Retrieve pad */
+  pad = gst_element_get_static_pad (element, pad_name);
+  if (!pad) {
+    g_printerr ("Could not retrieve pad '%s'\n", pad_name);
+    return;
+  }
+
+  /* Retrieve negotiated caps (or acceptable caps if negotiation is not finished yet) */
+  caps = gst_pad_get_current_caps (pad);
+  if (!caps)
+    caps = gst_pad_query_caps (pad, NULL);
+
+  /* Print and free */
+  g_print ("Caps for the %s pad:\n", pad_name);
+  print_caps (caps, "      ");
+  gst_caps_unref (caps);
+  gst_object_unref (pad);
+}
+// ****************************************************************************
