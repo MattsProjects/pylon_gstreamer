@@ -180,6 +180,7 @@ int scaledWidth = -1; // do not scale by default
 int scaledHeight = -1;
 int rotation = -1; // do not rotate or flip image by default
 bool h264stream = false;
+bool h264multicast = false;
 bool h264file = false;
 bool display = false;
 bool framebuffer = false;
@@ -224,6 +225,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			cout << endl;
 			cout << "Pipeline Examples (pick one):" << endl;
 			cout << " -h264stream <ipaddress> (Encodes images as h264 and transmits stream to another PC running a GStreamer receiving pipeline.)" << endl;
+			cout << " -h264multicast <ipaddress> (Encodes images as h264 and multicasts stream to the network.)" << endl;
 			cout << " -h264file <filename> <number of images> (Encodes images as h264 and records stream to local file.)" << endl;
 			cout << " -window (displays the raw image stream in a window on the local machine.)" << endl;
 			cout << " -framebuffer <fbdevice> (directs raw image stream to Linux framebuffer. eg: /dev/fb0)" << endl;
@@ -338,6 +340,17 @@ int ParseCommandLine(gint argc, gchar *argv[])
 					return -1;
 				}
 			}
+			else if (string(argv[i]) == "-h264multicast")
+			{
+				h264multicast = true;
+				if (argv[i + 1] != NULL)
+					ipaddress = string(argv[i + 1]);
+				else
+				{
+					cout << "IP Address not specified. eg: -h264multicast 224.1.1.1" << endl;
+					return -1;
+				}
+			}
 			else if (string(argv[i]) == "-h264file")
 			{
 				h264file = true;
@@ -411,7 +424,7 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			}			
 		}
 
-		if (display == false && framebuffer == false && h264file == false && h264stream == false && parsestring == false)
+		if (display == false && framebuffer == false && h264file == false && h264stream == false && h264multicast == false && parsestring == false)
 		{
 			cout << "No pipeline specified." << endl;
 			return -1;
@@ -500,6 +513,8 @@ gint main(gint argc, gchar *argv[])
 			pipelineBuilt = myPipelineHelper.build_pipeline_display();
 		else if (h264stream == true)
 			pipelineBuilt = myPipelineHelper.build_pipeline_h264stream(ipaddress.c_str());
+		else if (h264multicast == true)
+			pipelineBuilt = myPipelineHelper.build_pipeline_h264multicast(ipaddress.c_str());
 		else if (h264file == true)
 			pipelineBuilt = myPipelineHelper.build_pipeline_h264file(filename.c_str());
 		else if (framebuffer == true)

@@ -43,6 +43,9 @@ public:
 	// example of how to create a pipeline for encoding images in h264 format and streaming across a network
 	bool build_pipeline_h264stream(string ipAddress);
 
+	// example of how to create a pipeline for encoding images in h264 format and multicast across a network
+	bool build_pipeline_h264multicast(string ipAddress);
+
 	// example of how to create a pipeline for encoding images in h264 format and streaming to local video file
 	bool build_pipeline_h264file(string fileName);
 

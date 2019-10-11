@@ -252,6 +252,110 @@ bool CPipelineHelper::build_pipeline_h264stream(string ipAddress)
 
 }
 
+// example of how to create a pipeline for encoding images in h264 format and streaming across a network
+bool CPipelineHelper::build_pipeline_h264multicast(string ipAddress)
+{
+	try
+	{
+		if (m_pipelineBuilt == true)
+		{
+			cout << "Cancelling -h264stream. Another pipeline has already been built." << endl;
+			return false;
+		}
+
+		GstElement *convert;
+		GstElement *encoder;
+		GstElement *filter2;
+		GstElement *rtp264;
+		GstElement *sink;
+		GstCaps *filter2_caps;
+		int port = 3500;
+
+		cout << "Creating Pipeline for multicast streaming images as h264 video across network to group: " << ipAddress << ":" << port << "..." << endl;
+		cout << "Start the receiver PC first with this command: " << endl;
+		cout << "gst-launch-1.0 udpsrc multicast-group=" << ipAddress << " auto-multicast=true port=" << port << " ! application/x-rtp,encoding-name=H264,payload=96 ! rtph264depay ! avdec_h264 ! autovideosink sync=false async=false -e" << endl;
+		cout << "Then press enter to continue..." << endl;
+		cin.get();
+
+		// Create gstreamer elements
+		convert = gst_element_factory_make("videoconvert", "converter");
+
+		// depending on your platform, you may have to use some alternative encoder here.
+		cout << "Trying omxh264enc encoder..." << endl;
+		encoder = gst_element_factory_make("omxh264enc", "omxh264enc");  // omxh264enc works good on Raspberry Pi and Jetson Nano
+		if (!encoder)
+		{
+			cout << "Could not make omxh264enc encoder. Trying imxvpuenc_h264..." << endl;
+			encoder = gst_element_factory_make("imxvpuenc_h264", "imxvpuenc_h264"); // for i.MX devices.
+			if (!encoder)
+			{
+				cout << "Could not make imxvpuenc_h264 encoder. Trying v4l2h264enc..." << endl;
+				encoder = gst_element_factory_make("v4l2h264enc", "v4l2h264enc");  // for Snapdragon 820 devices
+				if (!encoder)
+				{
+					cout << "Could not make v4l2h264enc encoder. Trying x264enc..." << endl;
+					encoder = gst_element_factory_make("x264enc", "x264enc"); // for other devices
+					if (!encoder)
+					{
+						cout << "Could not make x264enc encoder. Giving up..." << endl;
+						return false; // give up
+					}
+				}
+			}
+		}
+		filter2 = gst_element_factory_make("capsfilter", "filter2");
+		rtp264 = gst_element_factory_make("rtph264pay", "rtp264");
+		sink = gst_element_factory_make("udpsink", "udpsink");
+
+		if (!convert){ cout << "Could not make convert" << endl; return false; }
+		if (!filter2){ cout << "Could not make filter2" << endl; return false; }
+		if (!rtp264){ cout << "Could not make rtp264" << endl; return false; }
+		if (!sink){ cout << "Could not make sink" << endl; return false; }
+
+		// specify some settings on the elements
+		// Different encoders have different features you can set.
+		if (encoder->object.name == "x264enc")
+		{
+			// for compatibility on resource-limited systems, set the encoding preset "ultrafast". Lowest quality video, but lowest lag.
+			g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
+		}
+
+		if (encoder->object.name == "omxh264enc")
+		{
+			// 1 = baseline, 2 = main, 3 = high
+			g_object_set(G_OBJECT(encoder), "profile", 8, NULL);
+
+		}
+
+		// filter2 capabilities
+		filter2_caps = gst_caps_new_simple("video/x-h264",
+			"stream-format", G_TYPE_STRING, "byte-stream",
+			NULL);
+
+		g_object_set(G_OBJECT(filter2), "caps", filter2_caps, NULL);
+		gst_caps_unref(filter2_caps);
+
+		// sink
+		g_object_set(G_OBJECT(sink), "host", ipAddress.c_str(), "port", port, "sync", FALSE, "async", FALSE, "auto-multicast", TRUE, NULL);
+
+		// add and link the pipeline elements
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, convert, encoder, filter2, rtp264, sink, NULL);
+		gst_element_link_many(m_source, convert, encoder, filter2, rtp264, sink, NULL);
+
+		cout << "Pipeline Made." << endl;
+
+		m_pipelineBuilt = true;
+
+		return true;
+	}
+	catch (std::exception &e)
+	{
+		cerr << "An exception occurred in build_pipeline_h264stream(): " << endl << e.what() << endl;
+		return false;
+	}
+
+}
+
 // example of how to create a pipeline for encoding images in h264 format and streaming to local video file
 bool CPipelineHelper::build_pipeline_h264file(string fileName)
 {
