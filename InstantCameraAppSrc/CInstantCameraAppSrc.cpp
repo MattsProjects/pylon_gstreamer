@@ -141,13 +141,11 @@ bool CInstantCameraAppSrc::SetFrameRate(double framesPerSecond)
 	{
 		if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
 			CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
-		else if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+		if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
 			CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(framesPerSecond);
-		else if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
+		if (GenApi::IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
 			CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(framesPerSecond);
-		else
-			return false;
-
+		
 		return true;
 	}
 	catch (GenICam::GenericException &e)
@@ -319,9 +317,9 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 
 			if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateEnable")))
 				GenApi::CBooleanPtr(GetNodeMap().GetNode("AcquisitionFrameRateEnable"))->SetValue(true);
-			else if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
+			if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRateAbs")))
 				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRateAbs"))->SetValue(m_frameRate); // this is called "AcquisitionFrameRate" (not abs) in usb cameras. Migration mode lets us use the old name though.
-			else if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
+			if (IsWritable(GetNodeMap().GetNode("AcquisitionFrameRate")))
 				GenApi::CFloatPtr(GetNodeMap().GetNode("AcquisitionFrameRate"))->SetValue(m_frameRate); // BCON and USB use SFNC3 names.
 		}
 
