@@ -424,9 +424,21 @@ int ParseCommandLine(gint argc, gchar *argv[])
 			}			
 		}
 
-		if (display == false && framebuffer == false && h264file == false && h264stream == false && h264multicast == false && parsestring == false)
+		bool pipelinesAvailable[] = { display, framebuffer, h264file, h264stream, h264multicast, parsestring };
+		int pipelinesRequested = 0;
+
+		for (int i = 0; i < sizeof(pipelinesAvailable); i++)
+			pipelinesRequested += (int)pipelinesAvailable[i];
+
+		if (pipelinesRequested == 0)
 		{
-			cout << "No pipeline specified." << endl;
+			cout << "No Pipeline Specified. Please specifiy one (and only one)." << endl;
+			return -1;
+		}
+
+		if (pipelinesRequested > 1)
+		{
+			cout << "Too Many Pipelines Specified. Please use only one." << endl;
 			return -1;
 		}
 
