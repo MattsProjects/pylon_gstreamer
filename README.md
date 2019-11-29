@@ -7,6 +7,7 @@
 - InstantCameraAppSrc cab be extended via GStreamer "bins" to include any other plugins within the source element (eg: Rescale, Rotate, etc.)
 
 # Architecture
+```
 |<--------------- Camera Acquisition & Pylon Grabbing ------------------->|<---------------------------------------- GStreamer Pipeline ------------------------->|
 |<------------------------------------------------------------- CInstantCameraAppSrc --------------------------------------->|    
 +-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
@@ -21,6 +22,7 @@
 | |freerun|                                                               | |             | |            | |            |    |    |          |    |               |
 | <--------                                                               | +-------------+ +------------+ +------------+    |    |          |    |               |
 +-------------------------------------------------------------------------+--------------------------------------------------+    +----------+    +---------------+
+```
 
 # Sample Programs
 - Sample programs based on the InstantCameraAppSrc class are found in the Samples folder.
