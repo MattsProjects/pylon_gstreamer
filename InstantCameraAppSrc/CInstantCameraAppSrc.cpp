@@ -666,9 +666,214 @@ GstElement* CInstantCameraAppSrc::GetSource()
 			NULL);
 
 		// setup the appsrc caps (what kind of video is coming out of the source element?
-		string format = "RGB";
-		if (m_isColor == false)
-			format = "GRAY8";
+
+		// First, align the defintion of the Pylon image's pixel format to those available in the videoconvert element
+		// See Pylon's documentation for pixeltype definitions 
+		// See this link for gstreamer video format definitions (https://gstreamer.freedesktop.org/documentation/additional/design/mediatype-video-raw.html?gi-language=c)
+		// Videoconvert's format: { I420, YV12, YUY2, UYVY, AYUV, VUYA, RGBx, BGRx, xRGB, xBGR, RGBA, BGRA, ARGB, ABGR, RGB, BGR, Y41B, Y42B, YVYU, Y444, v210, v216, Y210, Y410, NV12, NV21, GRAY8, GRAY16_BE, GRAY16_LE, v308, RGB16, BGR16, RGB15, BGR15, UYVP, A420, RGB8P, YUV9, YVU9, IYU1, ARGB64, AYUV64, r210, I420_10BE, I420_10LE, I422_10BE, I422_10LE, Y444_10BE, Y444_10LE, GBR, GBR_10BE, GBR_10LE, NV16, NV24, NV12_64Z32, A420_10BE, A420_10LE, A422_10BE, A422_10LE, A444_10BE, A444_10LE, NV61, P010_10BE, P010_10LE, IYU2, VYUY, GBRA, GBRA_10BE, GBRA_10LE, BGR10A2_LE, RGB10A2_LE, GBR_12BE, GBR_12LE, GBRA_12BE, GBRA_12LE, I420_12BE, I420_12LE, I422_12BE, I422_12LE, Y444_12BE, Y444_12LE, GRAY10_LE32, NV12_10LE32, NV16_10LE32, NV12_10LE40 }
+		string format = "";
+		EPixelType pixelType = m_Image.GetPixelType();
+		switch (pixelType)
+		{
+			case Pylon::PixelType_Undefined:
+				// todo
+				break;
+			case Pylon::PixelType_Mono1packed:
+				format = "GRAY8";
+				break;
+			case Pylon::PixelType_Mono2packed:
+				format = "GRAY8";
+				break;
+			case Pylon::PixelType_Mono4packed:
+				format = "GRAY8";
+				break;
+			case Pylon::PixelType_Mono8:
+				format = "GRAY8";
+				break;
+			case Pylon::PixelType_Mono8signed:
+				format = "GRAY8";
+				break;
+			case Pylon::PixelType_Mono10:
+				format = "GRAY16_LE";
+				break;
+			case Pylon::PixelType_Mono10packed:
+				format = "GRAY16_LE";
+				break;
+			case Pylon::PixelType_Mono10p:
+				format = "GRAY16_LE";
+				break;
+			case Pylon::PixelType_Mono12:
+				format = "GRAY16_LE";
+				break;
+			case Pylon::PixelType_Mono12packed:
+				format = "GRAY16_LE";
+				break;
+			case Pylon::PixelType_Mono12p:
+				format = "GRAY16_LE";
+				break;
+			case Pylon::PixelType_Mono16:
+				format = "GRAY16_LE";
+				break;
+			case Pylon::PixelType_BayerGR8:
+				// todo
+				break;
+			case Pylon::PixelType_BayerRG8:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGB8:
+				// todo
+				break;
+			case Pylon::PixelType_BayerBG8:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGR10:
+				// todo
+				break;
+			case Pylon::PixelType_BayerRG10:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGB10:
+				// todo
+				break;
+			case Pylon::PixelType_BayerBG10:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGR12:
+				// todo
+				break;
+			case Pylon::PixelType_BayerRG12:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGB12:
+				// todo
+				break;
+			case Pylon::PixelType_BayerBG12:
+				// todo
+				break;
+			case Pylon::PixelType_RGB8packed:
+				format = "RGB";
+				break;
+			case Pylon::PixelType_BGR8packed:
+				format = "BGR";
+				break;
+			case Pylon::PixelType_RGBA8packed:
+				format = "RGBA";
+				break;
+			case Pylon::PixelType_BGRA8packed:
+				format = "BGRA";
+				break;
+			case Pylon::PixelType_RGB10packed:
+				// todo
+				break;
+			case Pylon::PixelType_BGR10packed:
+				// todo
+				break;
+			case Pylon::PixelType_RGB12packed:
+				// todo
+				break;
+			case Pylon::PixelType_BGR12packed:
+				// todo
+				break;
+			case Pylon::PixelType_RGB16packed:
+				// todo
+				break;
+			case Pylon::PixelType_BGR10V1packed:
+				// todo
+				break;
+			case Pylon::PixelType_BGR10V2packed:
+				// todo
+				break;
+			case Pylon::PixelType_YUV411packed:
+				// todo
+				break;
+			case Pylon::PixelType_YUV422packed:
+				// todo
+				break;
+			case Pylon::PixelType_YUV444packed:
+				// todo
+				break;
+			case Pylon::PixelType_RGB8planar:
+				// todo
+				break;
+			case Pylon::PixelType_RGB10planar:
+				// todo
+				break;
+			case Pylon::PixelType_RGB12planar:
+				// todo
+				break;
+			case Pylon::PixelType_RGB16planar:
+				// todo
+				break;
+			case Pylon::PixelType_YUV422_YUYV_Packed:
+				// todo
+				break;
+			case Pylon::PixelType_YUV444planar:
+				// todo
+				break;
+			case Pylon::PixelType_YUV422planar:
+				// todo
+				break;
+			case Pylon::PixelType_YUV420planar:
+				format = "I420";
+				break;
+			case Pylon::PixelType_BayerGR12Packed:
+				// todo
+				break;
+			case Pylon::PixelType_BayerRG12Packed:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGB12Packed:
+				// todo
+				break;
+			case Pylon::PixelType_BayerBG12Packed:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGR10p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerRG10p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGB10p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerBG10p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGR12p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerRG12p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGB12p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerBG12p:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGR16:
+				// todo
+				break;
+			case Pylon::PixelType_BayerRG16:
+				// todo
+				break;
+			case Pylon::PixelType_BayerGB16:
+				// todo
+				break;
+			case Pylon::PixelType_BayerBG16:
+				// todo
+				break;
+			case Pylon::PixelType_RGB12V1packed:
+				// todo
+				break;
+			case Pylon::PixelType_Double:
+				// todo
+				break;
+			default:
+				// todo
+				break;
+		}
 
 		g_object_set(G_OBJECT(m_appsrc), "caps",
 			gst_caps_new_simple("video/x-raw",
