@@ -7,12 +7,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\InstantCameraAppSrc\CInstantCameraAppSrc.cpp" />
+    <ClCompile Include="..\CInstantCameraAppSrc.cpp" />
     <ClCompile Include="..\CPipelineHelper.cpp" />
     <ClCompile Include="..\demopylongstreamer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\InstantCameraAppSrc\CInstantCameraAppSrc.h" />
+    <ClInclude Include="..\CInstantCameraAppSrc.h" />
     <ClInclude Include="..\CPipelineHelper.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
