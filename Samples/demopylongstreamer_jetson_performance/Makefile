@@ -7,7 +7,7 @@ CLASS1	   := ../../InstantCameraAppSrc/CInstantCameraAppSrc
 CLASS2     := CPipelineHelper
 
 # Installation directories for pylon
-PYLON_ROOT ?= /opt/pylon5
+PYLON_ROOT ?= /opt/pylon6_2_0
 DIR ?= /usr/include
 
 # Build tools and flags

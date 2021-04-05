@@ -70,7 +70,7 @@ bool CPipelineHelper::build_pipeline_display()
 		cout << "Creating Pipeline for displaying images in local window..." << endl;
 		// Create gstreamer elements
 		convert = gst_element_factory_make("videoconvert", "converter");
-		sink = gst_element_factory_make("autovideosink", "videosink"); // depending on your platform, you may have to use some alternative here, like ("autovideosink", "sink")
+		sink = gst_element_factory_make("nv3dsink", "videosink"); // depending on your platform, you may have to use some alternative here, like ("autovideosink", "sink")
 
 		if (!convert){ cout << "Could not make convert" << endl; return false; }
 		if (!sink){ cout << "Could not make sink" << endl; return false; }
@@ -368,13 +368,18 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName)
 		}
 	
 		GstElement *convert;
+		GstElement *queue;
 		GstElement *encoder;
+		GstElement *h264parse;
+		GstElement *mp4mux;
 		GstElement *sink;
 
 		cout << "Creating Pipeline for saving images as h264 video on local host: " << fileName << "..." << endl;
 
 		// Create gstreamer elements
 		convert = gst_element_factory_make("videoconvert", "converter");
+
+		queue = gst_element_factory_make("queue","queue");
 
 		// depending on your platform, you may have to use some alternative encoder here.
 		encoder = gst_element_factory_make("omxh264enc", "omxh264enc"); // omxh264enc works good on Raspberry Pi
@@ -393,11 +398,16 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName)
 				}
 			}
 		}
+		h264parse = gst_element_factory_make("h264parse", "h264parse");
+		mp4mux = gst_element_factory_make("qtmux", "mp4mux");
 		sink = gst_element_factory_make("filesink", "filesink");
 
 
 		if (!convert){ cout << "Could not make convert" << endl; return false; }
+		if (!queue){ cout << "Could not make queue" << endl; return false;}
 		if (!encoder){ cout << "Could not make encoder" << endl; return false; }
+		if (!h264parse){ cout << "Could not make h264parse" << endl; return false;}
+		if (!mp4mux){ cout << "Could not make mp4mux" << endl; return false;}
 		if (!sink){ cout << "Could not make sink" << endl; return false; }
 
 		// Set up elements
@@ -408,12 +418,12 @@ bool CPipelineHelper::build_pipeline_h264file(string fileName)
 			// for compatibility on resource-limited systems, set the encoding preset "ultrafast". Lowest quality video, but lowest lag.
 			g_object_set(G_OBJECT(encoder), "speed-preset", 1, NULL);
 		}
-
+		
 		g_object_set(G_OBJECT(sink), "location", fileName.c_str(), NULL);
 
 		// add and link the pipeline elements
-		gst_bin_add_many(GST_BIN(m_pipeline), m_source, convert, encoder, sink, NULL);
-		gst_element_link_many(m_source, convert, encoder, sink, NULL);
+		gst_bin_add_many(GST_BIN(m_pipeline), m_source, convert, queue, encoder, h264parse, mp4mux, sink, NULL);
+		gst_element_link_many(m_source, convert, queue, encoder, h264parse, mp4mux, sink, NULL);
 		
 		cout << "Pipeline Made." << endl;
 		
