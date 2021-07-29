@@ -3,7 +3,7 @@
 
 # The program to build
 NAME       := demopylongstreamer
-CLASS1	   := ../../InstantCameraAppSrc/CInstantCameraAppSrc
+CLASS1	   := CInstantCameraAppSrc
 CLASS2     := CPipelineHelper
 
 # Installation directories for pylon
