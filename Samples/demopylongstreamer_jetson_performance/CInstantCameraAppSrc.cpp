@@ -281,7 +281,7 @@ bool CInstantCameraAppSrc::InitCamera(int width, int height, int framesPerSecond
 		else if (GetDeviceInfo().GetDeviceClass() == "BaslerGigE")
 		{
 			// some gige-specific settings for performance
-			GenApi::CIntegerPtr(GetNodeMap().GetNode("GevSCPSPacketSize"))->SetValue(1500); // set a usually-known-good gige packet size, like 1500.
+			GenApi::CIntegerPtr(GetNodeMap().GetNode("GevSCPSPacketSize"))->SetValue(9000); // set to big packet size known as jumbo frames. (Needed when using multiple GigE cameras.)
 		}
 
 
