@@ -72,7 +72,7 @@
 */
 
 
-#include "../../InstantCameraAppSrc/CInstantCameraAppSrc.h"
+#include "CInstantCameraAppSrc.h"
 #include "CPipelineHelper.h"
 #include <gst/gst.h>
 
