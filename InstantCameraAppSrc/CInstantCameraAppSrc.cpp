@@ -57,6 +57,7 @@
 	*/
 
 #include "CInstantCameraAppSrc.h"
+#include <gst/app/gstappsrc.h>
 
 using namespace Pylon;
 using namespace GenApi;
@@ -462,8 +463,7 @@ bool CInstantCameraAppSrc::retrieve_image()
 			NULL);
 
 		// Push the gst buffer wrapping the image buffer to the source pads of the AppSrc element, where it's picked up by the rest of the pipeline
-		GstFlowReturn ret;
-		g_signal_emit_by_name(m_appsrc, "push-buffer", m_gstBuffer, &ret);
+		gst_app_src_push_buffer(GST_APP_SRC(m_appsrc), m_gstBuffer);
 
 		return true;
 	}
